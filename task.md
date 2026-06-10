@@ -1,16 +1,16 @@
 # Danh sách Task: Smart AI Helpdesk (30 Days Sprint)
 
 - [ ] **Giai đoạn 1: Foundation & Cấu hình lõi (Days 1-5)**
-  - [ ] Day 1: Setup Clean Architecture, Solution & Git (`main`, `develop`)
-  - [ ] Day 2: Setup CI Pipeline (GitHub Actions)
-  - [ ] Day 3: Global Exception Handling & Serilog Logging
-  - [ ] Day 4: Base Entities & Result Pattern
-  - [ ] Day 5: Pagination Standard & Core Interfaces
+  - [x] Day 1: Setup Clean Architecture, Solution & Git (`main`, `develop`)
+  - [x] Day 2: Setup CI Pipeline (GitHub Actions)
+  - [x] Day 3: Global Exception Handling & Serilog Logging
+  - [x] Day 4: Base Entities & Result Pattern
+  - [x] Day 5: Pagination Standard & Core Interfaces
 
 - [ ] **Giai đoạn 2: Database Models & Migrations (Days 6-10)**
-  - [ ] Day 6: Thiết kế Entity Models
-  - [ ] Day 7: EF Core DbContext & Fluent API
-  - [ ] Day 8: Initial Migration & Database Seeding
+  - [x] Day 6: Thiết kế Entity Models
+  - [x] Day 7: EF Core DbContext & Fluent API
+  - [x] Day 8: Initial Migration & Database Seeding
   - [ ] Day 9: Repository Pattern & Unit of Work
   - [ ] Day 10: Tích hợp Redis Caching
 

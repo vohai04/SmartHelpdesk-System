@@ -62,3 +62,7 @@ nunit-*.xml
 *.suo
 *.userosscache
 *.sln.docstates
+
+# Ignore appsettings with sensitive data
+appsettings.Development.json
+appsettings.Local.json
