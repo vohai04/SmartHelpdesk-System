@@ -1,0 +1,29 @@
+name: .NET CI Pipeline
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore SmartHelpdesk.sln
+
+    - name: Build
+      run: dotnet build SmartHelpdesk.sln --configuration Release --no-restore
+
+    - name: Test
+      run: dotnet test SmartHelpdesk.sln --configuration Release --no-build --verbosity normal
