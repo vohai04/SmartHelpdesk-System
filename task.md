@@ -12,7 +12,7 @@
   - [x] Day 7: EF Core DbContext & Fluent API
   - [x] Day 8: Initial Migration & Database Seeding
   - [x] Day 9: Repository Pattern & Unit of Work
-  - [ ] Day 10: Tích hợp Redis Caching
+  - [x] Day 10: Tích hợp Redis Caching
 
 - [ ] **Giai đoạn 3: Application Logic & CQRS (Days 11-16)**
   - [ ] Day 11: Setup MediatR, Validation Pipeline
