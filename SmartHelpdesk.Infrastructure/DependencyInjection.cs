@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SmartHelpdesk.Domain.Interfaces;
 using SmartHelpdesk.Infrastructure.Persistence;
 using SmartHelpdesk.Infrastructure.Repositories;
+using SmartHelpdesk.Infrastructure.Services;
 
 namespace SmartHelpdesk.Infrastructure
 {
@@ -20,6 +21,14 @@ namespace SmartHelpdesk.Infrastructure
             
             // Register UnitOfWork
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+            // Register Redis Cache
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = configuration.GetConnectionString("RedisConnection");
+                options.InstanceName = "SmartHelpdesk_";
+            });
+            services.AddSingleton<ICacheService, RedisCacheService>();
 
             return services;
         }
