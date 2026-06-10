@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using SmartHelpdesk.Infrastructure;
 using SmartHelpdesk.Infrastructure.Persistence;
 using SmartHelpdesk.WebApi.Middlewares;
 
@@ -15,9 +16,8 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-// Configure EF Core with PostgreSQL
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Inject Infrastructure layer (DbContext, Repositories, UnitOfWork)
+builder.Services.AddInfrastructure(builder.Configuration);
 
 // Add services to the container.
 builder.Services.AddEndpointsApiExplorer();
