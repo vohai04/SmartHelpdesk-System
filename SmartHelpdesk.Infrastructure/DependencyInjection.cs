@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SmartHelpdesk.Domain.Interfaces;
+using SmartHelpdesk.Infrastructure.Authentication;
 using SmartHelpdesk.Infrastructure.Persistence;
 using SmartHelpdesk.Infrastructure.Repositories;
 using SmartHelpdesk.Infrastructure.Services;
@@ -29,6 +30,10 @@ namespace SmartHelpdesk.Infrastructure
                 options.InstanceName = "SmartHelpdesk_";
             });
             services.AddSingleton<ICacheService, RedisCacheService>();
+
+            // Register Jwt Settings Configuration binding & Token Generator
+            services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+            services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
 
             return services;
         }
