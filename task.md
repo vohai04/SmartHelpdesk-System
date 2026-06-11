@@ -15,7 +15,7 @@
   - [x] Day 10: Tích hợp Redis Caching
 
 - [ ] **Giai đoạn 3: Application Logic & CQRS (Days 11-16)**
-  - [ ] Day 11: Setup MediatR, Validation Pipeline
+  - [x] Day 11: Setup MediatR, Validation Pipeline
   - [ ] Day 12: Authentication (JWT & Refresh Token)
   - [ ] Day 13: CQRS cho Ticket
   - [ ] Day 14: CQRS cho Messages & Internal Notes
