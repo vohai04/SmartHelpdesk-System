@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using SmartHelpdesk.Application;
 using SmartHelpdesk.Infrastructure;
 using SmartHelpdesk.Infrastructure.Persistence;
 using SmartHelpdesk.WebApi.Middlewares;
@@ -15,6 +16,9 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 builder.Host.UseSerilog();
+
+// Inject Application layer (MediatR, FluentValidation)
+builder.Services.AddApplication();
 
 // Inject Infrastructure layer (DbContext, Repositories, UnitOfWork)
 builder.Services.AddInfrastructure(builder.Configuration);
