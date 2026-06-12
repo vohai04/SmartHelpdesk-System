@@ -54,6 +54,8 @@ builder.Services.AddAuthentication(options =>
 });
 
 // Add services to the container.
+builder.Services.AddControllers();
+builder.Services.AddAuthorization();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -121,5 +123,7 @@ using (var scope = app.Services.CreateScope())
         Log.Error(ex, "Lỗi xảy ra trong quá trình Migrate hoặc Seed Database.");
     }
 }
+
+app.MapControllers();
 
 app.Run();

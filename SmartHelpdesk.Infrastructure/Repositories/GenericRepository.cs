@@ -25,6 +25,11 @@ namespace SmartHelpdesk.Infrastructure.Repositories
             return await _dbSet.FindAsync(id);
         }
 
+        public IQueryable<T> GetQueryable()
+        {
+            return _dbSet.AsQueryable();
+        }
+
         public async Task<IReadOnlyList<T>> GetAllAsync()
         {
             return await _dbSet.ToListAsync();
