@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using System.Security.Claims;
 using MediatR;
 using SmartHelpdesk.Application.Features.Messages.Commands.AddMessage;
 using SmartHelpdesk.Application.Features.Messages.Queries.GetMessagesByTicketId;
@@ -13,7 +14,7 @@ namespace SmartHelpdesk.WebApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    // [Authorize] // Tạm thời comment lại để test Swagger cho tiện, sẽ mở lại khi làm API Login xong
+    [Authorize] // Yêu cầu đăng nhập
     public class TicketsController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -26,6 +27,13 @@ namespace SmartHelpdesk.WebApi.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateTicket([FromBody] CreateTicketCommand command)
         {
+            // Tự động lấy UserId từ JWT Token
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (Guid.TryParse(userIdClaim, out Guid userId))
+            {
+                command = command with { CreatedById = userId };
+            }
+
             var ticketId = await _mediator.Send(command);
             return CreatedAtAction(nameof(GetTicketById), new { id = ticketId }, new { Id = ticketId });
         }
@@ -54,6 +62,14 @@ namespace SmartHelpdesk.WebApi.Controllers
             {
                 return BadRequest(new { message = "TicketId in URL must match TicketId in body." });
             }
+            
+            // Tự động lấy UserId từ JWT Token
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (Guid.TryParse(userIdClaim, out Guid userId))
+            {
+                command.SenderId = userId;
+            }
+
             var result = await _mediator.Send(command);
             return Ok(result);
         }
