@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 
@@ -7,6 +8,7 @@ namespace SmartHelpdesk.Domain.Interfaces
 {
     public interface IGenericRepository<T> where T : class
     {
+        IQueryable<T> GetQueryable();
         Task<T?> GetByIdAsync(Guid id);
         Task<IReadOnlyList<T>> GetAllAsync();
         Task<IReadOnlyList<T>> FindAsync(Expression<Func<T, bool>> predicate);
