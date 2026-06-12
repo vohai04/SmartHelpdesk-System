@@ -1,0 +1,11 @@
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace SmartHelpdesk.Application.Interfaces
+{
+    public interface IAiService
+    {
+        Task<string> AnalyzeSentimentAsync(string content, CancellationToken cancellationToken = default);
+        Task<string> SuggestReplyAsync(string content, CancellationToken cancellationToken = default);
+    }
+}

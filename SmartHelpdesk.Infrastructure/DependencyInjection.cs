@@ -42,6 +42,9 @@ namespace SmartHelpdesk.Infrastructure
             services.AddTransient<IEmailService, EmailService>();
             services.AddTransient<IFileStorageService, LocalFileStorageService>();
 
+            // Register AI Service
+            services.AddHttpClient<IAiService, GeminiAiService>();
+
             return services;
         }
     }

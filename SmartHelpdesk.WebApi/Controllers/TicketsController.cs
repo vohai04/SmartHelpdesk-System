@@ -10,6 +10,8 @@ using SmartHelpdesk.Application.Features.Tickets.Commands.CreateTicket;
 using SmartHelpdesk.Application.Features.Tickets.Queries.GetTickets;
 using SmartHelpdesk.Application.Features.Tickets.Queries.GetTicketById;
 using SmartHelpdesk.Application.Features.Tickets.Commands.DeleteTicket;
+using SmartHelpdesk.Application.Features.Tickets.Queries.AnalyzeTicketSentiment;
+using SmartHelpdesk.Application.Features.Tickets.Queries.SuggestTicketReply;
 
 namespace SmartHelpdesk.WebApi.Controllers
 {
@@ -107,6 +109,22 @@ namespace SmartHelpdesk.WebApi.Controllers
         {
             var result = await _mediator.Send(new DeleteTicketCommand(id));
             return NoContent();
+        }
+
+        [HttpGet("{id}/ai/sentiment")]
+        [Authorize(Roles = "Admin,Agent")]
+        public async Task<IActionResult> AnalyzeSentiment(Guid id)
+        {
+            var result = await _mediator.Send(new AnalyzeTicketSentimentQuery(id));
+            return Ok(new { sentiment = result });
+        }
+
+        [HttpGet("{id}/ai/suggest-reply")]
+        [Authorize(Roles = "Admin,Agent")]
+        public async Task<IActionResult> SuggestReply(Guid id)
+        {
+            var result = await _mediator.Send(new SuggestTicketReplyQuery(id));
+            return Ok(new { suggestion = result });
         }
     }
 }
