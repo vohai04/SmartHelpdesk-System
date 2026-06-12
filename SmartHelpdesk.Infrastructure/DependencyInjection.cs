@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SmartHelpdesk.Domain.Interfaces;
 using SmartHelpdesk.Infrastructure.Authentication;
+using SmartHelpdesk.Infrastructure.Configurations;
 using SmartHelpdesk.Infrastructure.Persistence;
 using SmartHelpdesk.Infrastructure.Repositories;
 using SmartHelpdesk.Infrastructure.Services;
@@ -34,6 +35,10 @@ namespace SmartHelpdesk.Infrastructure
             // Register Jwt Settings Configuration binding & Token Generator
             services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
             services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
+
+            // Register Email Service
+            services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
+            services.AddTransient<IEmailService, EmailService>();
 
             return services;
         }
