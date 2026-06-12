@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SmartHelpdesk.Application.Interfaces;
 using SmartHelpdesk.Domain.Interfaces;
 using SmartHelpdesk.Infrastructure.Authentication;
 using SmartHelpdesk.Infrastructure.Configurations;
@@ -39,6 +40,7 @@ namespace SmartHelpdesk.Infrastructure
             // Register Email Service
             services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
             services.AddTransient<IEmailService, EmailService>();
+            services.AddTransient<IFileStorageService, LocalFileStorageService>();
 
             return services;
         }
