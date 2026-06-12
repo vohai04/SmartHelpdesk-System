@@ -1,6 +1,8 @@
 using System;
 using System.Threading.Tasks;
 using MediatR;
+using SmartHelpdesk.Application.Features.Messages.Commands.AddMessage;
+using SmartHelpdesk.Application.Features.Messages.Queries.GetMessagesByTicketId;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartHelpdesk.Application.Features.Tickets.Commands.CreateTicket;
@@ -42,6 +44,25 @@ namespace SmartHelpdesk.WebApi.Controllers
             if (result == null)
                 return NotFound(new { message = $"Không tìm thấy Ticket với Id {id}" });
                 
+            return Ok(result);
+        }
+
+        [HttpPost("{ticketId}/messages")]
+        public async Task<IActionResult> AddMessage(Guid ticketId, [FromBody] AddMessageCommand command)
+        {
+            if (ticketId != command.TicketId)
+            {
+                return BadRequest(new { message = "TicketId in URL must match TicketId in body." });
+            }
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+
+        [HttpGet("{ticketId}/messages")]
+        public async Task<IActionResult> GetMessagesByTicketId(Guid ticketId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 50)
+        {
+            var query = new GetMessagesByTicketIdQuery { TicketId = ticketId, PageNumber = pageNumber, PageSize = pageSize };
+            var result = await _mediator.Send(query);
             return Ok(result);
         }
     }
