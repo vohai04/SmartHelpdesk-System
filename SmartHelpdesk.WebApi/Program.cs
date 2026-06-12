@@ -102,6 +102,7 @@ if (app.Environment.IsDevelopment())
 // Add Global Exception Handling Middleware
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+app.UseStaticFiles();
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
