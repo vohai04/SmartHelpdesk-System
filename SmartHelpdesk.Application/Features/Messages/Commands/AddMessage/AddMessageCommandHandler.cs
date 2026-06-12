@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using MediatR;
 using SmartHelpdesk.Application.Features.Messages.Commands.AddMessage;
 using SmartHelpdesk.Application.Features.Messages.DTOs;
+using SmartHelpdesk.Application.Features.Messages.DTOs;
+using SmartHelpdesk.Application.Interfaces;
 using SmartHelpdesk.Domain.Entities;
 using SmartHelpdesk.Domain.Interfaces;
 
@@ -13,10 +15,12 @@ namespace SmartHelpdesk.Application.Features.Messages.Commands.AddMessage
     public class AddMessageCommandHandler : IRequestHandler<AddMessageCommand, TicketMessageDto>
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly INotificationService _notificationService;
 
-        public AddMessageCommandHandler(IUnitOfWork unitOfWork)
+        public AddMessageCommandHandler(IUnitOfWork unitOfWork, INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
+            _notificationService = notificationService;
         }
 
         public async Task<TicketMessageDto> Handle(AddMessageCommand request, CancellationToken cancellationToken)
@@ -50,6 +54,18 @@ namespace SmartHelpdesk.Application.Features.Messages.Commands.AddMessage
 
             var userRepo = _unitOfWork.Repository<User>();
             var sender = await userRepo.GetByIdAsync(request.SenderId);
+
+            if (!message.IsInternalNote)
+            {
+                if (sender?.Role == Domain.Enums.UserRole.Customer)
+                {
+                    await _notificationService.SendToAllAgentsAsync("Tin nhắn mới", $"Ticket #{ticket.Id} có tin nhắn mới từ khách hàng.");
+                }
+                else
+                {
+                    await _notificationService.SendToUserAsync(ticket.CreatedById, "Tin nhắn mới", $"Ticket #{ticket.Id} vừa được phản hồi.");
+                }
+            }
 
             return new TicketMessageDto
             {

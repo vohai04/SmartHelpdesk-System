@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using SmartHelpdesk.Application.Features.Tickets.Events;
+using SmartHelpdesk.Application.Interfaces;
 using SmartHelpdesk.Domain.Entities;
 using SmartHelpdesk.Domain.Interfaces;
 
@@ -12,11 +13,13 @@ namespace SmartHelpdesk.Application.Features.Tickets.Commands.CreateTicket
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMediator _mediator;
+        private readonly INotificationService _notificationService;
 
-        public CreateTicketCommandHandler(IUnitOfWork unitOfWork, IMediator mediator)
+        public CreateTicketCommandHandler(IUnitOfWork unitOfWork, IMediator mediator, INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _mediator = mediator;
+            _notificationService = notificationService;
         }
 
         public async Task<Guid> Handle(CreateTicketCommand request, CancellationToken cancellationToken)
@@ -45,6 +48,11 @@ namespace SmartHelpdesk.Application.Features.Tickets.Commands.CreateTicket
                     customer.Email
                 ), cancellationToken);
             }
+
+            await _notificationService.SendToAllAgentsAsync(
+                "Ticket Mới", 
+                $"Một Ticket mới vừa được tạo bởi {customer?.FullName}."
+            );
 
             return ticket.Id;
         }
