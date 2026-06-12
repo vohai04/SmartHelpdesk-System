@@ -9,5 +9,7 @@ namespace SmartHelpdesk.Application.Features.Tickets.Queries.GetTickets
         public string? Keyword { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 10;
+        public System.Guid CurrentUserId { get; set; } = System.Guid.Empty;
+        public string CurrentUserRole { get; set; } = string.Empty;
     }
 }

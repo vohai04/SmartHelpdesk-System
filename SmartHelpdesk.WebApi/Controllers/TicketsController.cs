@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using SmartHelpdesk.Application.Features.Tickets.Commands.CreateTicket;
 using SmartHelpdesk.Application.Features.Tickets.Queries.GetTickets;
 using SmartHelpdesk.Application.Features.Tickets.Queries.GetTicketById;
+using SmartHelpdesk.Application.Features.Tickets.Commands.DeleteTicket;
 
 namespace SmartHelpdesk.WebApi.Controllers
 {
@@ -41,6 +42,13 @@ namespace SmartHelpdesk.WebApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetTickets([FromQuery] GetTicketsQuery query)
         {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (Guid.TryParse(userIdClaim, out Guid userId))
+            {
+                query.CurrentUserId = userId;
+            }
+            query.CurrentUserRole = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+
             var result = await _mediator.Send(query);
             return Ok(result);
         }
@@ -48,7 +56,11 @@ namespace SmartHelpdesk.WebApi.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetTicketById(Guid id)
         {
-            var result = await _mediator.Send(new GetTicketByIdQuery(id));
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            Guid.TryParse(userIdClaim, out Guid userId);
+            var role = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+
+            var result = await _mediator.Send(new GetTicketByIdQuery(id, userId, role));
             if (result == null)
                 return NotFound(new { message = $"Không tìm thấy Ticket với Id {id}" });
                 
@@ -70,6 +82,13 @@ namespace SmartHelpdesk.WebApi.Controllers
                 command.SenderId = userId;
             }
 
+            // Chặn Customer gửi tin nhắn nội bộ
+            var role = User.FindFirstValue(ClaimTypes.Role);
+            if (role == SmartHelpdesk.Domain.Enums.UserRole.Customer.ToString())
+            {
+                command.IsInternalNote = false;
+            }
+
             var result = await _mediator.Send(command);
             return Ok(result);
         }
@@ -80,6 +99,14 @@ namespace SmartHelpdesk.WebApi.Controllers
             var query = new GetMessagesByTicketIdQuery { TicketId = ticketId, PageNumber = pageNumber, PageSize = pageSize };
             var result = await _mediator.Send(query);
             return Ok(result);
+        }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteTicket(Guid id)
+        {
+            var result = await _mediator.Send(new DeleteTicketCommand(id));
+            return NoContent();
         }
     }
 }

@@ -20,9 +20,15 @@ namespace SmartHelpdesk.Application.Features.Tickets.Queries.GetTicketById
 
         public async Task<TicketDto?> Handle(GetTicketByIdQuery request, CancellationToken cancellationToken)
         {
-            var ticket = await _unitOfWork.Repository<Ticket>().GetQueryable()
-                .Where(t => t.Id == request.Id)
-                .Select(t => new TicketDto
+            var query = _unitOfWork.Repository<Ticket>().GetQueryable()
+                .Where(t => t.Id == request.Id);
+
+            if (request.CurrentUserRole == SmartHelpdesk.Domain.Enums.UserRole.Customer.ToString())
+            {
+                query = query.Where(t => t.CreatedById == request.CurrentUserId);
+            }
+
+            var ticket = await query.Select(t => new TicketDto
                 {
                     Id = t.Id,
                     Title = t.Title,

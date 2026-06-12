@@ -23,6 +23,11 @@ namespace SmartHelpdesk.Application.Features.Tickets.Queries.GetTickets
         {
             var query = _unitOfWork.Repository<Ticket>().GetQueryable();
 
+            if (request.CurrentUserRole == SmartHelpdesk.Domain.Enums.UserRole.Customer.ToString())
+            {
+                query = query.Where(t => t.CreatedById == request.CurrentUserId);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Keyword))
             {
                 query = query.Where(t => t.Title.Contains(request.Keyword) || t.Description.Contains(request.Keyword));
