@@ -54,8 +54,21 @@ export function RegisterPage() {
       
       navigate("/auth/login");
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      const errorMsg = err.response?.data?.message || "Registration failed. Please try again.";
+      interface ApiErrorResponse {
+        message?: string;
+        Message?: string;
+        Detailed?: string;
+        Errors?: Array<{ PropertyName: string; ErrorMessage: string }>;
+      }
+      
+      const err = error as { response?: { data?: ApiErrorResponse } };
+      const data = err.response?.data;
+      
+      let errorMsg = "Registration failed. Please try again.";
+      if (data) {
+        const validationErrors = data.Errors?.map((e) => e.ErrorMessage).join(", ");
+        errorMsg = validationErrors || data.message || data.Message || data.Detailed || errorMsg;
+      }
       
       toast({
         title: "Registration Failed",
