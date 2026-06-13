@@ -14,19 +14,19 @@
   - [x] Day 9: Repository Pattern & Unit of Work
   - [x] Day 10: Tích hợp Redis Caching
 
-- [ ] **Giai đoạn 3: Application Logic & CQRS (Days 11-16)**
+- [x] **Giai đoạn 3: Application Logic & CQRS (Days 11-16)**
   - [x] Day 11: Setup MediatR, Validation Pipeline
   - [x] Day 12: Authentication (JWT & Refresh Token)
-  - [ ] Day 13: CQRS cho Ticket
-  - [ ] Day 14: CQRS cho Messages & Internal Notes
-  - [ ] Day 15: Tính năng File Upload (Attachments)
-  - [ ] Day 16: Module Admin
+  - [x] Day 13: CQRS cho Ticket
+  - [x] Day 14: CQRS cho Messages & Internal Notes
+  - [x] Day 15: Tính năng File Upload (Attachments)
+  - [x] Day 16: Module Admin
 
-- [ ] **Giai đoạn 4: AI Integration & Background Processing (Days 17-20)**
-  - [ ] Day 17: OpenAI SDK Integration & Prompt
-  - [ ] Day 18: Background Worker cho Auto-Triage
-  - [ ] Day 19: AI Sentiment Analysis & Auto-reply
-  - [ ] Day 20: SignalR cho Real-time Notifications
+- [x] **Giai đoạn 4: AI Integration & Background Processing (Days 17-20)**
+  - [x] Day 17: OpenAI SDK Integration & Prompt (Gemini Ai)
+  - [x] Day 18: Background Worker cho Auto-Triage
+  - [x] Day 19: AI Sentiment Analysis & Auto-reply
+  - [x] Day 20: SignalR cho Real-time Notifications
 
 - [ ] **Giai đoạn 5: Frontend Development (Days 21-27)**
   - [ ] Day 21: Setup React, Vite, Tailwind & Router
