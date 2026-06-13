@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using SmartHelpdesk.Domain.Exceptions;
 using System;
 using System.Linq;
 using System.Net;
@@ -27,8 +28,15 @@ namespace SmartHelpdesk.WebApi.Middlewares
             }
             catch (FluentValidation.ValidationException ex)
             {
-                // Bắt lỗi Validation (người dùng nhập sai) và trả về 400 Bad Request thay vì 500
                 await HandleValidationExceptionAsync(context, ex);
+            }
+            catch (BadRequestException ex)
+            {
+                await HandleCustomExceptionAsync(context, ex, HttpStatusCode.BadRequest);
+            }
+            catch (NotFoundException ex)
+            {
+                await HandleCustomExceptionAsync(context, ex, HttpStatusCode.NotFound);
             }
             catch (Exception ex)
             {
@@ -52,6 +60,22 @@ namespace SmartHelpdesk.WebApi.Middlewares
             var jsonResponse = JsonSerializer.Serialize(response);
             return context.Response.WriteAsync(jsonResponse);
         }
+
+        private static Task HandleCustomExceptionAsync(HttpContext context, Exception exception, HttpStatusCode statusCode)
+        {
+            context.Response.ContentType = "application/json";
+            context.Response.StatusCode = (int)statusCode;
+
+            var response = new
+            {
+                StatusCode = context.Response.StatusCode,
+                Message = exception.Message
+            };
+
+            var jsonResponse = JsonSerializer.Serialize(response);
+            return context.Response.WriteAsync(jsonResponse);
+        }
+
         private static Task HandleValidationExceptionAsync(HttpContext context, FluentValidation.ValidationException exception)
         {
             context.Response.ContentType = "application/json";

@@ -4,6 +4,7 @@ import * as z from "zod";
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { authService } from "../../services/authService";
+import { useAuthStore } from "../../store/authStore";
 
 // UI Components
 import { Input } from "../../components/ui/input";
@@ -26,6 +27,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export function RegisterPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { login } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -36,23 +38,39 @@ export function RegisterPage() {
     resolver: zodResolver(registerSchema),
   });
 
-  const onSubmit = async (data: RegisterFormValues) => {
+  const onSubmit = async (values: RegisterFormValues) => {
     setIsLoading(true);
     
     try {
-      // API call to register
-      await authService.register({
-        fullName: data.fullName,
-        email: data.email,
-        password: data.password
+      const data = await authService.register({
+        fullName: values.fullName,
+        email: values.email,
+        password: values.password
       });
+      
+      // Auto login after successful registration
+      const safeToken = data.token || data.Token;
+      const safeUserId = data.userId || data.UserId || "";
+      const safeEmail = data.email || data.Email || "";
+      const safeFullName = data.fullName || data.FullName || "";
+      const safeRole = data.role || data.Role || "Customer";
+      
+      if (safeToken) {
+        login(safeToken, { 
+          id: safeUserId, 
+          email: safeEmail, 
+          fullName: safeFullName,
+          role: safeRole
+        });
+        navigate("/");
+      } else {
+        navigate("/auth/login");
+      }
       
       toast({
         title: "Registration Successful",
-        description: "Your account has been created. Please log in.",
+        description: "Your account has been created successfully.",
       });
-      
-      navigate("/auth/login");
     } catch (error: unknown) {
       interface ApiErrorResponse {
         message?: string;
@@ -62,12 +80,12 @@ export function RegisterPage() {
       }
       
       const err = error as { response?: { data?: ApiErrorResponse } };
-      const data = err.response?.data;
+      const errData = err.response?.data;
       
       let errorMsg = "Registration failed. Please try again.";
-      if (data) {
-        const validationErrors = data.Errors?.map((e) => e.ErrorMessage).join(", ");
-        errorMsg = validationErrors || data.message || data.Message || data.Detailed || errorMsg;
+      if (errData) {
+        const validationErrors = errData.Errors?.map((e) => e.ErrorMessage).join(", ");
+        errorMsg = validationErrors || errData.message || errData.Message || errData.Detailed || errorMsg;
       }
       
       toast({

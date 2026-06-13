@@ -33,18 +33,32 @@ export function LoginPage() {
     resolver: zodResolver(loginSchema),
   });
 
-  const onSubmit = async (data: LoginFormValues) => {
+  const onSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
     
     try {
-      const response = await authService.login(data);
+      const data = await authService.login(values);
       
-      // Zustand state update
-      login(response.token, response.user);
+      const safeToken = data.token || data.Token;
+      const safeUserId = data.userId || data.UserId || "";
+      const safeEmail = data.email || data.Email || "";
+      const safeFullName = data.fullName || data.FullName || "";
+      const safeRole = data.role || data.Role || "Customer";
+      
+      if (!safeToken) {
+        throw new Error("No token received from server");
+      }
+
+      login(safeToken, { 
+        id: safeUserId, 
+        email: safeEmail, 
+        fullName: safeFullName,
+        role: safeRole
+      });
       
       toast({
         title: "Login Successful",
-        description: `Welcome back, ${response.user.fullName}!`,
+        description: `Welcome back, ${safeFullName}!`,
       });
       
       navigate("/");
