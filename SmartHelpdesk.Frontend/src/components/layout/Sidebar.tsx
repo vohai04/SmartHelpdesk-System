@@ -65,7 +65,9 @@ export function Sidebar() {
                 <Link
                   key={item.path}
                   to={item.path}
-                  onClick={() => setSidebarOpen(false)} // close on mobile after nav
+                  onClick={() => {
+                    if (window.innerWidth < 768) setSidebarOpen(false);
+                  }}
                   className={`flex items-center px-3 py-2.5 rounded-xl transition-all duration-150 gap-3 text-sm ${
                     isActive
                       ? "bg-indigo-50 text-indigo-700 font-semibold"

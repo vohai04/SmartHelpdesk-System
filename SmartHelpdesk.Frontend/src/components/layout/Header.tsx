@@ -25,7 +25,7 @@ export function Header() {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center px-4 sm:px-6 sticky top-0 z-20 shadow-sm gap-3 flex-shrink-0">
+    <header className="h-[var(--header-height,64px)] bg-white border-b border-gray-200 flex items-center px-4 sm:px-6 sticky top-0 z-[var(--z-header,100)] gap-3 flex-shrink-0">
       {/* Hamburger */}
       <button
         onClick={toggleSidebar}
@@ -86,7 +86,7 @@ export function Header() {
               </div>
             </div>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52 mt-2 rounded-xl shadow-lg">
+          <DropdownMenuContent align="end" className="w-56 mt-2">
             {/* Show name in dropdown on mobile */}
             <div className="md:hidden px-2 py-2 border-b border-slate-100 mb-1">
               <p className="text-sm font-semibold text-slate-800">{user?.fullName}</p>
@@ -94,18 +94,18 @@ export function Header() {
             </div>
             <DropdownMenuLabel className="text-xs text-slate-400 font-normal">My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer gap-2">
+            <DropdownMenuItem className="cursor-pointer gap-2.5 text-slate-700">
               <User className="h-4 w-4 text-slate-400" />
               Profile
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer gap-2">
+            <DropdownMenuItem className="cursor-pointer gap-2.5 text-slate-700">
               <Settings className="h-4 w-4 text-slate-400" />
               Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={handleLogout}
-              className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer gap-2"
+              className="text-[#B91C1C] focus:text-[#B91C1C] focus:bg-[#FEF2F2] cursor-pointer gap-2.5 mt-1"
             >
               <LogOut className="h-4 w-4" />
               Log out
