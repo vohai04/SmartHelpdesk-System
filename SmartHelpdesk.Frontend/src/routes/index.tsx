@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router-dom";
 import { AuthLayout } from "../layouts/AuthLayout";
 import { MainLayout } from "../layouts/MainLayout";
 import { LoginPage } from "../pages/auth/LoginPage";
+import { RegisterPage } from "../pages/auth/RegisterPage";
 import { AuthGuard } from "../components/guard/AuthGuard";
 import { GuestGuard } from "../components/guard/GuestGuard";
 import { RoleGuard } from "../components/guard/RoleGuard";
@@ -18,6 +19,10 @@ export const router = createBrowserRouter([
       {
         path: "login",
         element: <LoginPage />,
+      },
+      {
+        path: "register",
+        element: <RegisterPage />,
       }
     ]
   },
