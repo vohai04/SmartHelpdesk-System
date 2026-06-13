@@ -23,7 +23,7 @@ namespace SmartHelpdesk.Application.Features.Tickets.Commands.DeleteTicket
 
             if (ticket == null)
             {
-                throw new KeyNotFoundException($"Không tìm thấy Ticket với Id {request.Id}");
+                throw new SmartHelpdesk.Domain.Exceptions.NotFoundException($"Không tìm thấy Ticket với Id {request.Id}");
             }
 
             ticketRepo.Delete(ticket);

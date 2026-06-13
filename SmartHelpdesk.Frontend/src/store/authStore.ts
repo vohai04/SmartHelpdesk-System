@@ -26,7 +26,7 @@ export const useAuthStore = create<AuthState>()(
       logout: () => set({ token: null, user: null, isAuthenticated: false }),
     }),
     {
-      name: 'auth-storage', // name of the item in the storage (must be unique)
+      name: 'auth-storage-v2', // bumped version to clear stale cache
       partialize: (state) => ({ token: state.token, user: state.user, isAuthenticated: state.isAuthenticated }),
     }
   )

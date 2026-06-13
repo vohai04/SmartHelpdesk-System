@@ -8,9 +8,19 @@ export interface UserDto {
 }
 
 export interface LoginResponse {
-  token: string;
-  user: UserDto;
+  token?: string;
+  Token?: string;
+  userId?: string;
+  UserId?: string;
+  fullName?: string;
+  FullName?: string;
+  email?: string;
+  Email?: string;
+  role?: string;
+  Role?: string;
 }
+
+export type RegisterResponse = LoginResponse;
 
 export interface LoginRequest {
   email: string;
@@ -28,17 +38,13 @@ export const authService = {
     return axiosClient.post('/auth/login', data) as Promise<LoginResponse>;
   },
   
-  register: async (data: RegisterRequest): Promise<void> => {
-    return axiosClient.post('/auth/register', data);
+  register: async (data: RegisterRequest): Promise<RegisterResponse> => {
+    return axiosClient.post('/auth/register', data) as Promise<RegisterResponse>;
   },
   
   logout: async (): Promise<void> => {
-    try {
-      // Optional: Call backend to invalidate token if your API supports it
-      await axiosClient.post('/auth/logout');
-    } catch (error) {
-      // Ignore errors on logout (e.g., token already expired)
-      console.error("Logout API failed", error);
-    }
+    // JWT is stateless. We only need to clear the token on the frontend.
+    // No backend call is required unless token blacklisting is implemented.
+    return Promise.resolve();
   }
 };

@@ -1,4 +1,9 @@
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using SmartHelpdesk.Domain.Common;
 using SmartHelpdesk.Domain.Entities;
 
 namespace SmartHelpdesk.Infrastructure.Persistence
@@ -16,9 +21,44 @@ namespace SmartHelpdesk.Infrastructure.Persistence
         public DbSet<Attachment> Attachments => Set<Attachment>();
         public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            var entries = ChangeTracker
+                .Entries<BaseEntity>()
+                .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified || e.State == EntityState.Deleted);
+
+            foreach (var entityEntry in entries)
+            {
+                if (entityEntry.State == EntityState.Added)
+                {
+                    entityEntry.Entity.CreatedAt = DateTime.UtcNow;
+                }
+                else if (entityEntry.State == EntityState.Modified)
+                {
+                    entityEntry.Entity.UpdatedAt = DateTime.UtcNow;
+                }
+                else if (entityEntry.State == EntityState.Deleted)
+                {
+                    entityEntry.State = EntityState.Modified;
+                    entityEntry.Entity.IsDeleted = true;
+                    entityEntry.Entity.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // Apply Global Query Filters for Soft Delete
+            modelBuilder.Entity<User>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<Category>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<Ticket>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<TicketMessage>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<Attachment>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<AuditLog>().HasQueryFilter(e => !e.IsDeleted);
 
             // Configure Users
             modelBuilder.Entity<User>(entity =>

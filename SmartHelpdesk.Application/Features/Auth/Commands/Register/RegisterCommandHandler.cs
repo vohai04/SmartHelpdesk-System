@@ -30,7 +30,7 @@ namespace SmartHelpdesk.Application.Features.Auth.Commands.Register
 
             if (existingUser != null)
             {
-                throw new System.Exception("Email is already registered.");
+                throw new SmartHelpdesk.Domain.Exceptions.BadRequestException("Email is already registered.");
             }
 
             var newUser = new User
@@ -54,7 +54,8 @@ namespace SmartHelpdesk.Application.Features.Auth.Commands.Register
                 Token = token,
                 UserId = newUser.Id,
                 FullName = newUser.FullName,
-                Email = newUser.Email
+                Email = newUser.Email,
+                Role = newUser.Role.ToString()
             };
         }
     }

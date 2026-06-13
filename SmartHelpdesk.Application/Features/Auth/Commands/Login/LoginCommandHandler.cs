@@ -30,12 +30,12 @@ namespace SmartHelpdesk.Application.Features.Auth.Commands.Login
             // We use simple equality here to support the plaintext Seed Data.
             if (user == null || user.PasswordHash != request.Password)
             {
-                throw new KeyNotFoundException("Invalid email or password.");
+                throw new SmartHelpdesk.Domain.Exceptions.BadRequestException("Invalid email or password.");
             }
 
             if (!user.IsActive)
             {
-                throw new System.Exception("Your account is deactivated.");
+                throw new SmartHelpdesk.Domain.Exceptions.BadRequestException("Your account is deactivated.");
             }
 
             var token = _jwtTokenGenerator.GenerateToken(user);
@@ -45,7 +45,8 @@ namespace SmartHelpdesk.Application.Features.Auth.Commands.Login
                 Token = token,
                 UserId = user.Id,
                 FullName = user.FullName,
-                Email = user.Email
+                Email = user.Email,
+                Role = user.Role.ToString()
             };
         }
     }
