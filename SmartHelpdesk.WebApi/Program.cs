@@ -9,6 +9,9 @@ using SmartHelpdesk.Application;
 using SmartHelpdesk.Infrastructure;
 using SmartHelpdesk.Infrastructure.Persistence;
 using SmartHelpdesk.WebApi.Middlewares;
+using SmartHelpdesk.Application.Interfaces;
+using SmartHelpdesk.WebApi.Hubs;
+using SmartHelpdesk.WebApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +30,22 @@ builder.Services.AddApplication();
 
 // Inject Infrastructure layer (DbContext, Repositories, UnitOfWork)
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// Add SignalR and NotificationService
+builder.Services.AddSignalR();
+builder.Services.AddScoped<INotificationService, SignalRNotificationService>();
+
+// Add CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policyBuilder =>
+    {
+        policyBuilder.SetIsOriginAllowed(_ => true)
+               .AllowAnyMethod()
+               .AllowAnyHeader()
+               .AllowCredentials();
+    });
+});
 
 // Configure JWT Authentication
 var jwtSettingsSection = builder.Configuration.GetSection("JwtSettings");
@@ -50,6 +69,20 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = issuer,
         ValidAudience = audience,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret!))
+    };
+    
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/notifications"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -105,6 +138,8 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseStaticFiles();
 app.UseHttpsRedirection();
 
+app.UseCors("AllowAll");
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -126,5 +161,6 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();
