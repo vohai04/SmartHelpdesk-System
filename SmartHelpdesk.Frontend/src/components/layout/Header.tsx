@@ -11,7 +11,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "../ui/avatar";
 
 export function Header() {
   const { user, logout: storeLogout } = useAuthStore();
@@ -25,23 +24,23 @@ export function Header() {
   };
 
   return (
-    <header className="h-[var(--header-height,64px)] bg-white border-b border-gray-200 flex items-center px-4 sm:px-6 sticky top-0 z-[var(--z-header,100)] gap-3 flex-shrink-0">
+    <header className="h-[var(--header-height,64px)] bg-white border-b border-slate-200 flex items-center px-4 sm:px-6 sticky top-0 z-[var(--z-header,100)] gap-3 flex-shrink-0">
       {/* Hamburger */}
       <button
         onClick={toggleSidebar}
-        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex-shrink-0"
+        className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors flex-shrink-0"
         aria-label="Toggle sidebar"
       >
-        <Menu size={20} />
+        <Menu size={18} />
       </button>
 
       {/* Search bar — hidden on xs, visible from sm */}
-      <div className="hidden sm:flex flex-1 items-center bg-slate-100 px-3 py-2 rounded-lg gap-2 max-w-md">
-        <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
+      <div className="hidden sm:flex flex-1 items-center bg-[#FAFAFA] border border-slate-200 px-3 py-1.5 rounded-md gap-2 max-w-sm transition-colors focus-within:border-slate-300 focus-within:bg-white">
+        <Search className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
         <input
           type="text"
-          placeholder="Search tickets, users..."
-          className="bg-transparent border-none outline-none text-sm w-full text-slate-700 placeholder:text-slate-400"
+          placeholder="Search..."
+          className="bg-transparent border-none outline-none text-[13px] w-full text-slate-900 placeholder:text-slate-400"
         />
       </div>
 
@@ -49,57 +48,41 @@ export function Header() {
       <div className="flex-1 sm:hidden" />
 
       {/* Right icons */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
         {/* Mobile search icon */}
-        <button className="sm:hidden p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
-          <Search size={18} />
+        <button className="sm:hidden p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors">
+          <Search size={16} />
         </button>
 
         {/* Notifications */}
-        <button className="relative p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
-          <Bell size={18} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
+        <button className="relative p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors">
+          <Bell size={16} />
+          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-slate-900 rounded-full border border-white" />
         </button>
 
-        {/* Settings — hidden on mobile */}
-        <button className="hidden sm:flex p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
-          <Settings size={18} />
-        </button>
-
-        <div className="hidden sm:block w-px h-6 bg-slate-200 mx-1" />
+        <div className="w-px h-4 bg-slate-200 mx-2" />
 
         {/* User dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <div className="flex items-center gap-2 cursor-pointer group outline-none">
-              <Avatar className="h-9 w-9 border-2 border-white shadow-sm group-hover:shadow-md transition-all flex-shrink-0">
-                <AvatarFallback className="bg-indigo-100 text-indigo-700 font-bold text-sm">
-                  {user?.fullName?.charAt(0).toUpperCase() ?? "U"}
-                </AvatarFallback>
-              </Avatar>
-              {/* Name: hidden on mobile */}
-              <div className="hidden md:block text-left">
-                <p className="text-sm font-semibold text-slate-700 leading-tight group-hover:text-indigo-700 transition-colors">
-                  {user?.fullName ?? "User"}
-                </p>
-                <p className="text-xs text-slate-400">{user?.role}</p>
+            <button className="flex items-center gap-2 cursor-pointer group outline-none p-1 rounded-md hover:bg-slate-50 transition-colors border border-transparent">
+              <div className="h-6 w-6 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-medium text-[11px] flex-shrink-0 group-hover:bg-slate-300 transition-colors">
+                {user?.fullName?.charAt(0).toUpperCase() ?? "U"}
               </div>
-            </div>
+            </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 mt-2">
-            {/* Show name in dropdown on mobile */}
-            <div className="md:hidden px-2 py-2 border-b border-slate-100 mb-1">
-              <p className="text-sm font-semibold text-slate-800">{user?.fullName}</p>
-              <p className="text-xs text-slate-400">{user?.role}</p>
+            <div className="px-2 py-2 mb-1">
+              <p className="text-[13px] font-medium text-slate-900 truncate">{user?.fullName}</p>
+              <p className="text-[11px] text-slate-500 truncate mt-0.5">{user?.email}</p>
             </div>
-            <DropdownMenuLabel className="text-xs text-slate-400 font-normal">My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="cursor-pointer gap-2.5 text-slate-700">
-              <User className="h-4 w-4 text-slate-400" />
+              <User className="h-3.5 w-3.5 text-slate-400" />
               Profile
             </DropdownMenuItem>
             <DropdownMenuItem className="cursor-pointer gap-2.5 text-slate-700">
-              <Settings className="h-4 w-4 text-slate-400" />
+              <Settings className="h-3.5 w-3.5 text-slate-400" />
               Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -107,7 +90,7 @@ export function Header() {
               onClick={handleLogout}
               className="text-[#B91C1C] focus:text-[#B91C1C] focus:bg-[#FEF2F2] cursor-pointer gap-2.5 mt-1"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-3.5 w-3.5" />
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>

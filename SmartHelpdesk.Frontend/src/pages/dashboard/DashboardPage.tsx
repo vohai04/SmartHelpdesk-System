@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Ticket, Clock, CheckCircle, Smile,
   Trash2, AlertCircle, Loader2, TrendingUp,
+  ArrowUpRight,
 } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import { ticketService, type TicketDto } from "../../services/ticketService";
@@ -10,33 +11,34 @@ import { useToast } from "../../hooks/use-toast";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  Open:       { label: "Open",        className: "bg-red-50 text-red-700 ring-red-200" },
-  InProgress: { label: "In Progress", className: "bg-amber-50 text-amber-700 ring-amber-200" },
-  Resolved:   { label: "Resolved",    className: "bg-green-50 text-green-700 ring-green-200" },
-  Closed:     { label: "Closed",      className: "bg-slate-100 text-slate-600 ring-slate-200" },
+const STATUS_CONFIG: Record<string, { label: string; dotClass: string; textClass: string }> = {
+  Open:       { label: "Open",        dotClass: "bg-rose-500", textClass: "text-rose-700" },
+  InProgress: { label: "In Progress", dotClass: "bg-amber-500", textClass: "text-amber-700" },
+  Resolved:   { label: "Resolved",    dotClass: "bg-emerald-500", textClass: "text-emerald-700" },
+  Closed:     { label: "Closed",      dotClass: "bg-slate-400", textClass: "text-slate-600" },
 };
 
-const PRIORITY_CONFIG: Record<string, { label: string; className: string }> = {
-  Urgent: { label: "Urgent", className: "bg-rose-50 text-rose-700 ring-rose-200" },
-  High:   { label: "High",   className: "bg-orange-50 text-orange-700 ring-orange-200" },
-  Medium: { label: "Medium", className: "bg-blue-50 text-blue-700 ring-blue-200" },
-  Low:    { label: "Low",    className: "bg-slate-50 text-slate-500 ring-slate-200" },
+const PRIORITY_CONFIG: Record<string, { label: string; textClass: string }> = {
+  Urgent: { label: "Urgent", textClass: "text-rose-600 font-medium" },
+  High:   { label: "High",   textClass: "text-orange-600 font-medium" },
+  Medium: { label: "Medium", textClass: "text-slate-700" },
+  Low:    { label: "Low",    textClass: "text-slate-500" },
 };
 
 function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUS_CONFIG[status] ?? { label: status, className: "bg-slate-100 text-slate-600 ring-slate-200" };
+  const cfg = STATUS_CONFIG[status] ?? { label: status, dotClass: "bg-slate-400", textClass: "text-slate-600" };
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ring-1 ring-inset ${cfg.className}`}>
-      {cfg.label}
-    </span>
+    <div className="flex items-center gap-1.5">
+      <div className={`w-1.5 h-1.5 rounded-full ${cfg.dotClass}`} />
+      <span className={`text-[12px] font-medium ${cfg.textClass}`}>{cfg.label}</span>
+    </div>
   );
 }
 
 function PriorityBadge({ priority }: { priority: string }) {
-  const cfg = PRIORITY_CONFIG[priority] ?? { label: priority, className: "bg-slate-100 text-slate-600 ring-slate-200" };
+  const cfg = PRIORITY_CONFIG[priority] ?? { label: priority, textClass: "text-slate-500" };
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ring-1 ring-inset ${cfg.className}`}>
+    <span className={`text-[12px] ${cfg.textClass}`}>
       {cfg.label}
     </span>
   );
@@ -55,31 +57,32 @@ interface StatCardProps {
   value: string | number;
   sub?: string;
   icon: React.ReactNode;
-  iconBg: string;
   trend?: string;
   trendPositive?: boolean;
   loading?: boolean;
 }
 
-function StatCard({ label, value, icon, iconBg, trend, trendPositive, loading }: StatCardProps) {
+function StatCard({ label, value, icon, trend, trendPositive, loading }: StatCardProps) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{label}</p>
-          <p className="text-3xl font-bold text-slate-900 mt-1.5">
-            {loading ? <span className="animate-pulse text-slate-300">—</span> : value}
-          </p>
-          {trend && !loading && (
-            <div className={`flex items-center gap-1 mt-1 text-xs font-medium ${trendPositive ? 'text-emerald-600' : 'text-slate-400'}`}>
-              <TrendingUp size={11} />
-              {trend}
-            </div>
-          )}
-        </div>
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${iconBg}`}>
+    <div className="bg-white rounded-[12px] border border-slate-200 p-5 flex flex-col justify-between h-[120px]">
+      <div className="flex items-center justify-between text-slate-500">
+        <p className="text-[13px] font-medium">{label}</p>
+        <div className="text-slate-400 opacity-70">
           {icon}
         </div>
+      </div>
+      <div>
+        <p className="text-[28px] font-semibold text-slate-900 tracking-tight leading-none">
+          {loading ? <span className="animate-pulse text-slate-300">—</span> : value}
+        </p>
+        {trend && !loading && (
+          <div className="flex items-center gap-1 mt-2 text-[11px] font-medium">
+            <span className={trendPositive ? 'text-emerald-600 flex items-center gap-0.5' : 'text-slate-500 flex items-center gap-0.5'}>
+              {trendPositive ? <ArrowUpRight size={12} /> : null}
+              {trend}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -89,9 +92,9 @@ function StatCard({ label, value, icon, iconBg, trend, trendPositive, loading }:
 
 function PageHeader({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <div className="mb-6">
-      <h1 className="text-[22px] font-bold text-slate-900 leading-tight">{title}</h1>
-      <p className="text-sm text-slate-500 mt-0.5">{subtitle}</p>
+    <div className="mb-8">
+      <h1 className="text-[24px] font-semibold text-slate-900 tracking-tight">{title}</h1>
+      <p className="text-[14px] text-slate-500 mt-1">{subtitle}</p>
     </div>
   );
 }
@@ -143,10 +146,10 @@ export function DashboardPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 max-w-6xl">
       <PageHeader
-        title={isCustomer ? "My Dashboard" : "System Dashboard"}
-        subtitle={`Welcome back, ${user?.fullName ?? ""}. ${isCustomer ? "Here are your support tickets." : "Here's an overview of all helpdesk activity."}`}
+        title={isCustomer ? "My Dashboard" : "Overview"}
+        subtitle={`Welcome back, ${user?.fullName ?? ""}. ${isCustomer ? "Here are your support tickets." : "Here's what's happening across the helpdesk."}`}
       />
 
       {/* ── Stats ── */}
@@ -154,8 +157,7 @@ export function DashboardPage() {
         <StatCard
           label={isCustomer ? "My Tickets" : "Total Tickets"}
           value={total}
-          icon={<Ticket size={20} className="text-indigo-600" />}
-          iconBg="bg-indigo-50"
+          icon={<Ticket size={16} strokeWidth={2} />}
           trend={isCustomer ? undefined : "+12% this month"}
           trendPositive
           loading={loading}
@@ -163,26 +165,23 @@ export function DashboardPage() {
         <StatCard
           label={isCustomer ? "My Open" : "Open Tickets"}
           value={open}
-          icon={<Clock size={20} className="text-red-500" />}
-          iconBg="bg-red-50"
-          trend={open > 0 ? "Needs attention" : "All clear"}
+          icon={<Clock size={16} strokeWidth={2} />}
+          trend={open > 0 ? "Requires attention" : "No backlog"}
           trendPositive={open === 0}
           loading={loading}
         />
         <StatCard
           label={isCustomer ? "My Resolved" : "Resolved / Closed"}
           value={resolved}
-          icon={<CheckCircle size={20} className="text-emerald-600" />}
-          iconBg="bg-emerald-50"
-          trend="From fetched records"
+          icon={<CheckCircle size={16} strokeWidth={2} />}
+          trend="From current records"
           loading={loading}
         />
         {!isCustomer && (
           <StatCard
             label="Satisfaction"
             value="98%"
-            icon={<Smile size={20} className="text-amber-500" />}
-            iconBg="bg-amber-50"
+            icon={<Smile size={16} strokeWidth={2} />}
             trend="Based on surveys"
             trendPositive
             loading={loading}
@@ -191,92 +190,90 @@ export function DashboardPage() {
       </div>
 
       {/* ── Tickets Table ── */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        {/* Table header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <div>
-            <h2 className="text-[15px] font-semibold text-slate-800">
-              {isCustomer ? "My Recent Tickets" : "Recent Tickets"}
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">Last 10 records</p>
-          </div>
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold ring-1 ring-inset ring-indigo-200">
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[16px] font-semibold text-slate-900 tracking-tight">
+            {isCustomer ? "Recent Tickets" : "Latest Activity"}
+          </h2>
+          <span className="text-[12px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
             {role}
           </span>
         </div>
 
-        {/* Loading */}
-        {loading && (
-          <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
-            <Loader2 size={28} className="animate-spin text-indigo-400" />
-            <span className="text-sm">Loading tickets...</span>
-          </div>
-        )}
+        <div className="bg-white rounded-[12px] border border-slate-200 overflow-hidden shadow-sm">
+          {/* Loading */}
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-24 gap-3 text-slate-400">
+              <Loader2 size={24} className="animate-spin text-slate-300" />
+              <span className="text-[13px]">Loading tickets...</span>
+            </div>
+          )}
 
-        {/* Error */}
-        {!loading && error && (
-          <div className="flex flex-col items-center justify-center py-20 gap-3 text-red-500">
-            <AlertCircle size={28} />
-            <span className="text-sm text-center max-w-sm">{error}</span>
-          </div>
-        )}
+          {/* Error */}
+          {!loading && error && (
+            <div className="flex flex-col items-center justify-center py-24 gap-3 text-red-500">
+              <AlertCircle size={24} />
+              <span className="text-[13px] text-center max-w-sm">{error}</span>
+            </div>
+          )}
 
-        {/* Empty */}
-        {!loading && !error && tickets.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
-            <Ticket size={36} className="opacity-20" />
-            <span className="text-sm">No tickets found.</span>
-          </div>
-        )}
+          {/* Empty */}
+          {!loading && !error && tickets.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-24 gap-3 text-slate-400">
+              <Ticket size={32} className="opacity-20" />
+              <span className="text-[13px]">No tickets found.</span>
+            </div>
+          )}
 
-        {/* Table */}
-        {!loading && !error && tickets.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-5 py-3">Title</th>
-                  <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-3 py-3">Priority</th>
-                  <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-3 py-3">Status</th>
-                  <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-3 py-3">Created</th>
-                  {isAdmin && (
-                    <th className="text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-5 py-3">Actions</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {tickets.map((ticket) => (
-                  <tr key={ticket.id} className="hover:bg-slate-50/70 transition-colors group">
-                    <td className="px-5 py-3.5 max-w-xs">
-                      <p className="font-medium text-slate-800 truncate">{ticket.title}</p>
-                      <p className="text-xs text-slate-400 truncate mt-0.5">{ticket.description}</p>
-                    </td>
-                    <td className="px-3 py-3.5 whitespace-nowrap">
-                      <PriorityBadge priority={ticket.priority} />
-                    </td>
-                    <td className="px-3 py-3.5 whitespace-nowrap">
-                      <StatusBadge status={ticket.status} />
-                    </td>
-                    <td className="px-3 py-3.5 whitespace-nowrap text-slate-500 text-xs">
-                      {formatDate(ticket.createdAt)}
-                    </td>
+          {/* Table */}
+          {!loading && !error && tickets.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/50">
+                    <th className="text-[12px] font-medium text-slate-500 px-5 py-3 w-[40%]">Title</th>
+                    <th className="text-[12px] font-medium text-slate-500 px-4 py-3">Status</th>
+                    <th className="text-[12px] font-medium text-slate-500 px-4 py-3">Priority</th>
+                    <th className="text-[12px] font-medium text-slate-500 px-4 py-3">Created</th>
                     {isAdmin && (
-                      <td className="px-5 py-3.5 text-right">
-                        <button
-                          onClick={() => setDeleteTarget(ticket)}
-                          title="Delete ticket"
-                          className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </td>
+                      <th className="text-[12px] font-medium text-slate-500 px-5 py-3 text-right">Actions</th>
                     )}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {tickets.map((ticket) => (
+                    <tr key={ticket.id} className="hover:bg-slate-50 transition-colors group">
+                      <td className="px-5 py-3.5 max-w-[200px]">
+                        <p className="font-medium text-[14px] text-slate-900 truncate">{ticket.title}</p>
+                        <p className="text-[12px] text-slate-500 truncate mt-0.5">{ticket.description}</p>
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <StatusBadge status={ticket.status} />
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <PriorityBadge priority={ticket.priority} />
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap text-slate-500 text-[12px]">
+                        {formatDate(ticket.createdAt)}
+                      </td>
+                      {isAdmin && (
+                        <td className="px-5 py-3.5 text-right">
+                          <button
+                            onClick={() => setDeleteTarget(ticket)}
+                            title="Delete ticket"
+                            className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Confirm Delete Modal ── */}
