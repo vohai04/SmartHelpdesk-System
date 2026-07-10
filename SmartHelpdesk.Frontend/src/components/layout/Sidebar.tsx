@@ -1,7 +1,33 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Ticket, Users, X } from "lucide-react";
+import { LayoutDashboard, Ticket, Users, ChevronRight } from "lucide-react";
 import { useUiStore } from "../../store/uiStore";
 import { useAuthStore } from "../../store/authStore";
+
+interface NavItem {
+  name: string;
+  path: string;
+  icon: React.ReactNode;
+}
+
+function NavLink({ item, isActive, onClick }: { item: NavItem; isActive: boolean; onClick: () => void }) {
+  return (
+    <Link
+      to={item.path}
+      onClick={onClick}
+      className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-150 ${
+        isActive
+          ? "bg-blue-50 text-blue-700 font-medium"
+          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+      }`}
+    >
+      <span className={`flex-shrink-0 transition-colors ${isActive ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600"}`}>
+        {item.icon}
+      </span>
+      <span className="flex-1 truncate">{item.name}</span>
+      {isActive && <ChevronRight size={12} className="text-blue-500 ml-auto flex-shrink-0" />}
+    </Link>
+  );
+}
 
 export function Sidebar() {
   const location = useLocation();
@@ -9,12 +35,15 @@ export function Sidebar() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === "Admin";
 
-  const navItems = [
-    { name: "Dashboard", path: "/", icon: <LayoutDashboard size={18} strokeWidth={2.2} /> },
-    { name: "Tickets",   path: "/tickets", icon: <Ticket size={18} strokeWidth={2.2} /> },
-    // Users: only visible to Admin
-    ...(isAdmin ? [{ name: "Users", path: "/users", icon: <Users size={18} strokeWidth={2.2} /> }] : []),
+  const navItems: NavItem[] = [
+    { name: "Dashboard", path: "/", icon: <LayoutDashboard size={16} strokeWidth={2} /> },
+    { name: "Tickets",   path: "/tickets", icon: <Ticket size={16} strokeWidth={2} /> },
+    ...(isAdmin ? [{ name: "Users", path: "/users", icon: <Users size={16} strokeWidth={2} /> }] : []),
   ];
+
+  const handleNavClick = () => {
+    if (window.innerWidth < 768) setSidebarOpen(false);
+  };
 
   if (!isSidebarOpen) return null;
 
@@ -22,76 +51,55 @@ export function Sidebar() {
     <>
       {/* Mobile backdrop */}
       <div
-        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 md:hidden transition-opacity"
+        className="fixed inset-0 bg-black/25 z-30 md:hidden"
         onClick={() => setSidebarOpen(false)}
       />
 
-      {/* Sidebar panel */}
+      {/* Sidebar */}
       <aside className="
-        fixed inset-y-0 left-0 z-40 w-[240px] bg-[#FAFAFA] border-r border-slate-200 flex flex-col shadow-2xl
-        md:relative md:z-auto md:shadow-none md:w-[240px]
+        fixed inset-y-0 left-0 z-40 flex flex-col
+        w-[var(--sidebar-width,220px)] bg-white border-r border-gray-200
+        md:relative md:z-auto
+        animate-slide-in md:animate-none
       ">
-        {/* Logo */}
-        <div className="h-[var(--header-height,64px)] flex items-center justify-between px-5 flex-shrink-0">
+        {/* Brand */}
+        <div className="h-[var(--header-height,56px)] flex items-center px-4 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-[8px] bg-slate-900 flex items-center justify-center text-white shadow-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <div className="w-7 h-7 rounded-lg bg-gray-900 flex items-center justify-center">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2z"/>
                 <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/>
               </svg>
             </div>
-            <span className="font-semibold text-[15px] tracking-tight text-slate-900">SmartDesk</span>
+            <span className="font-semibold text-[14px] text-gray-900">SmartDesk</span>
           </div>
-          {/* Close button on mobile */}
-          <button
-            className="md:hidden p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors"
-            onClick={() => setSidebarOpen(false)}
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
+          <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">
+            Navigation
+          </div>
+          {navItems.map(item => {
+            const isActive = location.pathname === item.path || (item.path !== "/" && location.pathname.startsWith(item.path));
+            return <NavLink key={item.path} item={item} isActive={isActive} onClick={handleNavClick} />;
+          })}
+        </nav>
+
+        {/* User footer */}
+        <div className="border-t border-gray-100 p-3 flex-shrink-0">
+          <Link
+            to="/profile"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors group"
           >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Nav */}
-        <div className="flex-1 overflow-y-auto px-3 py-5">
-          <nav className="space-y-0.5">
-            {navItems.map((item) => {
-              const isActive =
-                location.pathname === item.path ||
-                (item.path !== "/" && location.pathname.startsWith(item.path));
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => {
-                    if (window.innerWidth < 768) setSidebarOpen(false);
-                  }}
-                  className={`flex items-center px-3 py-2 rounded-md transition-all duration-150 gap-3 text-[13.5px] ${
-                    isActive
-                      ? "bg-slate-200/60 text-slate-900 font-medium"
-                      : "text-slate-600 hover:bg-slate-200/40 hover:text-slate-900"
-                  }`}
-                >
-                  <span className={isActive ? "text-slate-900" : "text-slate-400"}>
-                    {item.icon}
-                  </span>
-                  {item.name}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* User badge at bottom */}
-        <div className="p-3 mb-2 flex-shrink-0">
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-slate-200/40 transition-colors cursor-pointer border border-transparent">
-            <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-slate-700 font-medium text-xs flex-shrink-0">
+            <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-[11px] font-semibold text-gray-700 flex-shrink-0 group-hover:bg-gray-300 transition-colors">
               {user?.fullName?.charAt(0).toUpperCase() ?? "U"}
             </div>
             <div className="min-w-0">
-              <p className="text-[13px] font-medium text-slate-900 truncate">{user?.fullName}</p>
-              <p className="text-[11px] text-slate-500 truncate mt-0.5">{user?.role}</p>
+              <p className="text-[12px] font-medium text-gray-900 truncate">{user?.fullName ?? "User"}</p>
+              <p className="text-[11px] text-gray-500 truncate">{user?.role}</p>
             </div>
-          </div>
+          </Link>
         </div>
       </aside>
     </>

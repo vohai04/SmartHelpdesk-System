@@ -2,31 +2,44 @@ import { Outlet } from "react-router-dom";
 
 export function AuthLayout() {
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#FAFAFA] p-4 relative overflow-hidden font-sans">
-      <div className="w-full max-w-[400px] relative z-10 flex flex-col items-center">
-        {/* Brand */}
-        <div className="flex flex-col items-center text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-white border border-slate-200 shadow-sm mb-6">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-900">
-              <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2z"/>
-              <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/>
-            </svg>
+    <div className="min-h-screen w-full bg-[#F9FAFB] flex items-center justify-center p-4">
+      {/* Subtle grid pattern background */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, #E5E7EB 1px, transparent 0)`,
+          backgroundSize: "28px 28px",
+        }}
+      />
+
+      {/* Gradient blobs - very subtle */}
+      <div className="fixed top-0 left-1/4 w-[500px] h-[500px] bg-blue-100/40 rounded-full blur-3xl pointer-events-none -translate-y-1/2" />
+      <div className="fixed bottom-0 right-1/4 w-[400px] h-[400px] bg-indigo-100/30 rounded-full blur-3xl pointer-events-none translate-y-1/2" />
+
+      <div className="relative z-10 w-full max-w-[400px]">
+        {/* Logo mark */}
+        <div className="flex items-center justify-center mb-8">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gray-900 flex items-center justify-center shadow-lg shadow-gray-900/20">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2z"/>
+                <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/>
+              </svg>
+            </div>
+            <span className="text-[16px] font-semibold text-gray-900 tracking-tight">SmartDesk</span>
           </div>
-          <h1 className="text-[24px] font-semibold text-slate-900 tracking-tight mb-2">Smart Helpdesk</h1>
-          <p className="text-slate-500 text-[14px]">Streamline your support experience.</p>
         </div>
 
-        {/* Form card */}
-        <div className="w-full bg-white border border-slate-200 rounded-[16px] p-6 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-          <Outlet />
+        {/* Card */}
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-xl shadow-gray-100/80 overflow-hidden">
+          <div className="p-7 sm:p-8">
+            <Outlet />
+          </div>
         </div>
 
-        {/* Footer */}
-        <div className="mt-8 text-center">
-          <p className="text-slate-400 text-[13px]">
-            &copy; {new Date().getFullYear()} Smart Helpdesk
-          </p>
-        </div>
+        <p className="text-center text-[12px] text-gray-400 mt-6">
+          &copy; {new Date().getFullYear()} SmartDesk. All rights reserved.
+        </p>
       </div>
     </div>
   );
