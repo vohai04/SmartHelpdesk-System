@@ -12,9 +12,10 @@ export interface TicketDto {
   createdById: string;
   createdByName: string;
   assignedToId: string | null;
-  assignedToName: string | null;
+  assignedToName?: string;
   isAiTriaged: boolean;
-  aiSentiment: string | null;
+  aiSentiment?: string;
+  aiSummary?: string;
   createdAt: string;
   updatedAt: string | null;
 }

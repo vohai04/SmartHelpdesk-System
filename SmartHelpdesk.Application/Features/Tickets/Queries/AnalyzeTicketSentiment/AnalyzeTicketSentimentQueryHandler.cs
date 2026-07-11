@@ -25,9 +25,9 @@ namespace SmartHelpdesk.Application.Features.Tickets.Queries.AnalyzeTicketSentim
             if (ticket == null)
                 throw new Exception($"Không tìm thấy Ticket với Id {request.TicketId}");
 
-            var contentToAnalyze = $"Title: {ticket.Title}\nDescription: {ticket.Description}";
+            var triage = await _aiService.AnalyzeTicketTriageAsync(ticket.Title, ticket.Description, cancellationToken);
             
-            return await _aiService.AnalyzeSentimentAsync(contentToAnalyze, cancellationToken);
+            return triage.Sentiment;
         }
     }
 }
