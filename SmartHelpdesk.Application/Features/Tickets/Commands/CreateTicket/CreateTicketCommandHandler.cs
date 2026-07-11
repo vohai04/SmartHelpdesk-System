@@ -74,7 +74,7 @@ namespace SmartHelpdesk.Application.Features.Tickets.Commands.CreateTicket
                 );
 
                 // Run AI update
-                await scopedMediator.Send(new SmartHelpdesk.Application.Features.Tickets.Commands.UpdateTicketPriority.UpdateTicketPriorityCommand
+                await scopedMediator.Send(new SmartHelpdesk.Application.Features.Tickets.Commands.AnalyzeTicketTriage.AnalyzeTicketTriageCommand
                 {
                     TicketId = ticket.Id,
                     Title = ticket.Title,

@@ -261,18 +261,24 @@ export function TicketDetailPage() {
               </div>
             </div>
 
-            {/* AI Insights */}
-            {ticket.isAiTriaged && (
+            {/* AI Insights (Hidden from Customers) */}
+            {isAdminOrAgent && ticket.isAiTriaged && (
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1.5">
                   <Sparkle size={14} className="text-indigo-500" />
                   AI Triage
                 </h3>
-                <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100 space-y-2.5">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-600">Sentiment:</span>
                     <span className="font-medium text-indigo-700 capitalize">{ticket.aiSentiment || 'Neutral'}</span>
                   </div>
+                  {ticket.aiSummary && (
+                    <div className="pt-2 border-t border-indigo-100 text-[13px] text-indigo-900/80 leading-relaxed">
+                      <span className="font-semibold block mb-1">Summary:</span>
+                      {ticket.aiSummary}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

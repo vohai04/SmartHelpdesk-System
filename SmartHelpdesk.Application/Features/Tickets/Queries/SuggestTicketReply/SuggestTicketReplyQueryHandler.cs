@@ -5,6 +5,8 @@ using MediatR;
 using SmartHelpdesk.Application.Interfaces;
 using SmartHelpdesk.Domain.Entities;
 using SmartHelpdesk.Domain.Interfaces;
+using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace SmartHelpdesk.Application.Features.Tickets.Queries.SuggestTicketReply
 {
@@ -30,9 +32,22 @@ namespace SmartHelpdesk.Application.Features.Tickets.Queries.SuggestTicketReply
             var roleStr = user?.Role.ToString() ?? "Hỗ trợ viên";
             var role = roleStr == "Admin" ? "Quản trị viên" : "Chuyên viên hỗ trợ";
 
-            var contentToAnalyze = $"Title: {ticket.Title}\nDescription: {ticket.Description}";
+            var messages = await _unitOfWork.Repository<TicketMessage>()
+                .GetQueryable()
+                .Include(m => m.Sender)
+                .Where(m => m.TicketId == request.TicketId && !m.IsInternalNote)
+                .OrderBy(m => m.CreatedAt)
+                .ToListAsync(cancellationToken);
 
-            return await _aiService.SuggestReplyAsync(contentToAnalyze, fullName, role, cancellationToken);
+            var chatHistory = string.Join("\n\n", messages.Select(m => 
+                $"{(m.Sender?.Role.ToString() == "Customer" ? "Khách hàng" : "Agent")} ({m.Sender?.FullName ?? "Unknown"}):\n{m.Content}"));
+
+            if (string.IsNullOrWhiteSpace(chatHistory))
+            {
+                chatHistory = "(Chưa có tin nhắn nào trong ticket này)";
+            }
+
+            return await _aiService.SuggestReplyAsync(ticket.Title, ticket.Description, chatHistory, fullName, role, cancellationToken);
         }
     }
 }

@@ -1,9 +1,9 @@
 using System;
 using MediatR;
 
-namespace SmartHelpdesk.Application.Features.Tickets.Commands.UpdateTicketPriority
+namespace SmartHelpdesk.Application.Features.Tickets.Commands.AnalyzeTicketTriage
 {
-    public class UpdateTicketPriorityCommand : IRequest<bool>
+    public class AnalyzeTicketTriageCommand : IRequest<bool>
     {
         public Guid TicketId { get; set; }
         public string Title { get; set; } = string.Empty;

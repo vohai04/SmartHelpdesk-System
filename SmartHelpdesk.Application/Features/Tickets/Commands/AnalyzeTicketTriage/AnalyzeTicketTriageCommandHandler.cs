@@ -7,15 +7,15 @@ using SmartHelpdesk.Domain.Enums;
 using SmartHelpdesk.Domain.Interfaces;
 using SmartHelpdesk.Application.Interfaces;
 
-namespace SmartHelpdesk.Application.Features.Tickets.Commands.UpdateTicketPriority
+namespace SmartHelpdesk.Application.Features.Tickets.Commands.AnalyzeTicketTriage
 {
-    public class UpdateTicketPriorityCommandHandler : IRequestHandler<UpdateTicketPriorityCommand, bool>
+    public class AnalyzeTicketTriageCommandHandler : IRequestHandler<AnalyzeTicketTriageCommand, bool>
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IAiService _aiService;
         private readonly INotificationService _notificationService;
 
-        public UpdateTicketPriorityCommandHandler(
+        public AnalyzeTicketTriageCommandHandler(
             IUnitOfWork unitOfWork,
             IAiService aiService,
             INotificationService notificationService)
@@ -25,12 +25,12 @@ namespace SmartHelpdesk.Application.Features.Tickets.Commands.UpdateTicketPriori
             _notificationService = notificationService;
         }
 
-        public async Task<bool> Handle(UpdateTicketPriorityCommand request, CancellationToken cancellationToken)
+        public async Task<bool> Handle(AnalyzeTicketTriageCommand request, CancellationToken cancellationToken)
         {
             // 1. Analyze with AI
-            var priorityStr = await _aiService.DeterminePriorityAsync(request.Title, request.Description, cancellationToken);
+            var triageResult = await _aiService.AnalyzeTicketTriageAsync(request.Title, request.Description, cancellationToken);
             
-            if (!Enum.TryParse<SmartHelpdesk.Domain.Enums.TicketPriority>(priorityStr, true, out var priority))
+            if (!Enum.TryParse<SmartHelpdesk.Domain.Enums.TicketPriority>(triageResult.Priority, true, out var priority))
             {
                 priority = SmartHelpdesk.Domain.Enums.TicketPriority.Medium; // Default fallback
             }
@@ -42,6 +42,8 @@ namespace SmartHelpdesk.Application.Features.Tickets.Commands.UpdateTicketPriori
             if (ticket == null) return false;
 
             ticket.Priority = priority;
+            ticket.AiSentiment = triageResult.Sentiment;
+            ticket.AiSummary = triageResult.Summary;
             ticket.IsAiTriaged = true;
 
             ticketRepository.Update(ticket);
@@ -49,8 +51,8 @@ namespace SmartHelpdesk.Application.Features.Tickets.Commands.UpdateTicketPriori
 
             // 3. Notify Frontend via SignalR to trigger live reload
             await _notificationService.SendToAllAgentsAsync(
-                "Ticket Updated", 
-                $"Ticket {ticket.Id.ToString().Split('-')[0].ToUpper()} priority updated by AI to {priority}",
+                "AI Triage Completed", 
+                $"Ticket #{ticket.Id.ToString().Split('-')[0].ToUpper()} được AI phân loại mức độ {priority}.",
                 ticket.Id.ToString()
             );
 
