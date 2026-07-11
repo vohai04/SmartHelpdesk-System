@@ -10,8 +10,11 @@ namespace SmartHelpdesk.Application.Features.Tickets.DTOs
         public string Status { get; set; } = string.Empty;
         public string Priority { get; set; } = string.Empty;
         public Guid CategoryId { get; set; }
+        public string CategoryName { get; set; } = string.Empty;
         public Guid CreatedById { get; set; }
+        public string CreatedByName { get; set; } = string.Empty;
         public Guid? AssignedToId { get; set; }
+        public string? AssignedToName { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }

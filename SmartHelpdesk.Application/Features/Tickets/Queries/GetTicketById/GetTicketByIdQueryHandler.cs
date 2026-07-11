@@ -36,8 +36,11 @@ namespace SmartHelpdesk.Application.Features.Tickets.Queries.GetTicketById
                     Status = t.Status.ToString(),
                     Priority = t.Priority.ToString(),
                     CategoryId = t.CategoryId,
+                    CategoryName = t.Category != null ? t.Category.Name : string.Empty,
                     CreatedById = t.CreatedById,
+                    CreatedByName = t.CreatedBy != null ? t.CreatedBy.FullName : string.Empty,
                     AssignedToId = t.AssignedToId,
+                    AssignedToName = t.AssignedTo != null ? t.AssignedTo.FullName : null,
                     CreatedAt = t.CreatedAt,
                     UpdatedAt = t.UpdatedAt
                 })
