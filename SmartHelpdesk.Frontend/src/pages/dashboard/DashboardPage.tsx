@@ -5,45 +5,41 @@ import {
   Clock,
   CheckCircle,
   Smiley,
-  Trash,
   Warning,
   ArrowUpRight,
   Plus,
 } from "@phosphor-icons/react";
 import { useAuthStore } from "../../store/authStore";
 import { ticketService, type TicketDto } from "../../services/ticketService";
-import { ConfirmModal } from "../../components/ui/ConfirmModal";
 import { CreateTicketModal } from "../../components/tickets/CreateTicketModal";
-import { useToast } from "../../hooks/use-toast";
+import { analyticsService, type DashboardMetricsDto } from "../../services/analyticsService";
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
 
-// ─── Config ───────────────────────────────────────────────────────────────────
-const STATUS: Record<string, { label: string; dot: string; color: string }> = {
-  Open:       { label: "Open",        dot: "#f87171", color: "#dc2626" },
-  InProgress: { label: "In Progress", dot: "#fbbf24", color: "#d97706" },
-  Resolved:   { label: "Resolved",    dot: "#4ade80", color: "#16a34a" },
-  Closed:     { label: "Closed",      dot: "#a1a1aa", color: "#71717a" },
+// ─── Badges ───────────────────────────────────────────────────────────────────
+const STATUS_STYLE: Record<string, { bg: string; color: string; border: string }> = {
+  Open:       { bg: "var(--accent-subtle)",   color: "var(--accent)",   border: "var(--accent-border)" },
+  InProgress: { bg: "#fef3c7",                color: "#d97706",         border: "#fde68a" },
+  Resolved:   { bg: "var(--success-subtle)",  color: "var(--success)",  border: "var(--success-border)" },
+  Closed:     { bg: "var(--border-subtle)",   color: "var(--text-tertiary)", border: "var(--border-default)" },
 };
 
-const PRIORITY: Record<string, { label: string; color: string }> = {
-  Urgent: { label: "Urgent", color: "#dc2626" },
-  High:   { label: "High",   color: "#ea580c" },
-  Medium: { label: "Medium", color: "#2563eb" },
-  Low:    { label: "Low",    color: "#71717a" },
+const PRIORITY_COLOR: Record<string, string> = {
+  Low:    "var(--text-tertiary)",
+  Medium: "var(--text-secondary)",
+  High:   "#ea580c",
+  Urgent: "var(--danger)",
 };
 
-function StatusPill({ status }: { status: string }) {
-  const cfg = STATUS[status] ?? { label: status, dot: "#a1a1aa", color: "#71717a" };
+function StatusBadge({ status }: { status: string }) {
+  const s = STATUS_STYLE[status] ?? STATUS_STYLE.Open;
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium">
-      <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: cfg.dot }} />
-      <span style={{ color: cfg.color }}>{cfg.label}</span>
+    <span
+      className="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
+      style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}
+    >
+      {status === "InProgress" ? "In Progress" : status}
     </span>
   );
-}
-
-function PriorityLabel({ priority }: { priority: string }) {
-  const cfg = PRIORITY[priority] ?? { label: priority, color: "var(--text-tertiary)" };
-  return <span className="text-[11px] font-medium" style={{ color: cfg.color }}>{cfg.label}</span>;
 }
 
 function formatDate(d: string) {
@@ -125,25 +121,31 @@ function TableSkeleton() {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export function DashboardPage() {
   const { user }  = useAuthStore();
-  const { toast } = useToast();
   const role      = user?.role ?? "Customer";
-  const isAdmin   = role === "Admin";
   const isCustomer = role === "Customer";
 
   const [tickets,      setTickets]      = useState<TicketDto[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<TicketDto | null>(null);
-  const [deleting,     setDeleting]     = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
-  const loadDashboardTickets = () => {
+  const [metrics,      setMetrics]      = useState<DashboardMetricsDto | null>(null);
+
+  const loadDashboardTickets = async () => {
     setLoading(true);
     setError(null);
-    ticketService.getTickets({ pageNumber: 1, pageSize: 10 })
-      .then(r => setTickets(r.items ?? []))
-      .catch(() => setError("Could not reach the backend. Make sure the API server is running."))
-      .finally(() => setLoading(false));
+    try {
+      const [r, m] = await Promise.all([
+        ticketService.getTickets({ pageNumber: 1, pageSize: 10 }),
+        !isCustomer ? analyticsService.getDashboardMetrics() : Promise.resolve(null)
+      ]);
+      setTickets(r.items ?? []);
+      if (m) setMetrics(m);
+    } catch {
+      setError("Could not reach the backend. Make sure the API server is running.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -153,21 +155,6 @@ export function DashboardPage() {
   const total    = tickets.length;
   const open     = tickets.filter(t => t.status === "Open").length;
   const resolved = tickets.filter(t => t.status === "Resolved" || t.status === "Closed").length;
-
-  const handleConfirmDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      await ticketService.deleteTicket(deleteTarget.id);
-      setTickets(prev => prev.filter(t => t.id !== deleteTarget.id));
-      toast({ title: "Ticket deleted", description: `"${deleteTarget.title}" was removed.` });
-      setDeleteTarget(null);
-    } catch {
-      toast({ title: "Error", description: "Could not delete this ticket.", variant: "destructive" });
-    } finally {
-      setDeleting(false);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -196,42 +183,90 @@ export function DashboardPage() {
       <div className={`grid gap-3 ${isCustomer ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2 xl:grid-cols-4"}`}>
         <StatCard
           label={isCustomer ? "My Tickets" : "Total Tickets"}
-          value={total}
+          value={isCustomer ? total : metrics?.totalTickets ?? "-"}
           icon={<Ticket size={14} weight="bold" style={{ color: "#2563eb" }} />}
           iconBg="var(--accent-subtle)"
-          trend={isCustomer ? undefined : "+12% vs last month"}
+          trend={isCustomer ? undefined : "All time records"}
           trendPositive
           loading={loading}
         />
         <StatCard
           label={isCustomer ? "Open" : "Open Tickets"}
-          value={open}
+          value={isCustomer ? open : metrics?.openTickets ?? "-"}
           icon={<Clock size={14} weight="bold" style={{ color: "#d97706" }} />}
           iconBg="var(--warning-subtle)"
-          trend={open > 0 ? "Needs attention" : "All clear"}
-          trendPositive={open === 0}
+          trend={isCustomer ? undefined : `${metrics?.urgentTickets ?? 0} Urgent`}
+          trendPositive={false}
           loading={loading}
         />
         <StatCard
-          label={isCustomer ? "Resolved" : "Resolved / Closed"}
-          value={resolved}
+          label={isCustomer ? "Resolved" : "Avg Resolution Time"}
+          value={isCustomer ? resolved : `${metrics?.averageResolutionTimeHours ?? 0}h`}
           icon={<CheckCircle size={14} weight="bold" style={{ color: "#16a34a" }} />}
           iconBg="var(--success-subtle)"
-          trend="From current records"
+          trend="Overall performance"
           loading={loading}
         />
         {!isCustomer && (
           <StatCard
-            label="Satisfaction"
-            value="98%"
-            icon={<Smiley size={14} weight="bold" style={{ color: "#d97706" }} />}
-            iconBg="var(--warning-subtle)"
-            trend="Based on surveys"
+            label="AI Triage Rate"
+            value={`${metrics?.aiTriageRate ?? 0}%`}
+            icon={<Smiley size={14} weight="bold" style={{ color: "#8b5cf6" }} />}
+            iconBg="#ede9fe"
+            trend="Auto-assigned"
             trendPositive
             loading={loading}
           />
         )}
       </div>
+
+      {/* Charts (Admin/Agent only) */}
+      {!isCustomer && metrics && (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <div className="rounded-xl p-5" style={{ background: "var(--surface-default)", border: "1px solid var(--border-default)", boxShadow: "var(--shadow-xs)" }}>
+            <h3 className="text-[13px] font-semibold text-slate-800 mb-4">Tickets by Status</h3>
+            <div className="h-[240px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={Object.entries(metrics.ticketsByStatus).map(([k, v]) => ({ name: k, count: v }))} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <RechartsTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }} />
+                  <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div className="rounded-xl p-5" style={{ background: "var(--surface-default)", border: "1px solid var(--border-default)", boxShadow: "var(--shadow-xs)" }}>
+            <h3 className="text-[13px] font-semibold text-slate-800 mb-4">Tickets by Priority</h3>
+            <div className="h-[240px] w-full relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                  <Pie
+                    data={Object.entries(metrics.ticketsByPriority).map(([k, v]) => ({ name: k, value: v }))}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={70}
+                    outerRadius={95}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {Object.entries(metrics.ticketsByPriority).map((entry, index) => {
+                      const colors: Record<string, string> = { Urgent: '#ef4444', High: '#f97316', Medium: '#3b82f6', Low: '#71717a' };
+                      return <Cell key={`cell-${index}`} fill={colors[entry[0]] || '#94a3b8'} />;
+                    })}
+                  </Pie>
+                  <RechartsTooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }} />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span className="text-[20px] font-bold text-slate-800 tabular-nums">{metrics.totalTickets}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div>
@@ -292,10 +327,10 @@ export function DashboardPage() {
               <table className="w-full border-collapse">
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border-default)" }}>
-                    {["Ticket", "Status", "Priority", "Created", ...(isAdmin ? [""] : [])].map(h => (
+                    {["Ticket Details", "Status", "Priority", "Assignee", "Created"].map(h => (
                       <th
                         key={h}
-                        className={`text-left text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5 ${h === "" ? "text-right" : ""}`}
+                        className="text-left text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5"
                         style={{ color: "var(--text-disabled)", background: "var(--surface-bg)" }}
                       >
                         {h}
@@ -315,38 +350,32 @@ export function DashboardPage() {
                       onMouseOut={e => { (e.currentTarget as HTMLTableRowElement).style.background = "transparent"; }}
                     >
                       <td className="px-5 py-3">
-                        <Link to={`/tickets/${ticket.id}`} className="block hover:underline">
-                          <p className="text-[13px] font-medium truncate max-w-[260px]" style={{ color: "var(--text-primary)" }}>
+                        <Link to={`/tickets/${ticket.id}`} className="block">
+                          <p className="text-[13px] font-semibold truncate hover:underline" style={{ color: "var(--text-primary)" }}>
                             {ticket.title}
                           </p>
+                          <p className="text-[11px] truncate mt-0.5" style={{ color: "var(--text-disabled)" }}>
+                            #{ticket.id.substring(0,8)} • {ticket.categoryName || "Uncategorized"}
+                          </p>
                         </Link>
-                        <p className="text-[11px] truncate max-w-[260px] mt-0.5" style={{ color: "var(--text-disabled)" }}>
-                          {ticket.description}
-                        </p>
                       </td>
                       <td className="px-5 py-3 whitespace-nowrap">
-                        <StatusPill status={ticket.status} />
+                        <StatusBadge status={ticket.status} />
                       </td>
                       <td className="px-5 py-3 whitespace-nowrap">
-                        <PriorityLabel priority={ticket.priority} />
+                        <span className="text-[12px] font-medium flex items-center gap-1.5" style={{ color: PRIORITY_COLOR[ticket.priority] }}>
+                          <div className="w-1.5 h-1.5 rounded-full" style={{ background: PRIORITY_COLOR[ticket.priority] }} />
+                          {ticket.priority}
+                        </span>
                       </td>
-                      <td className="px-5 py-3 whitespace-nowrap text-[11px]" style={{ color: "var(--text-disabled)", fontVariantNumeric: "tabular-nums" }}>
+                      <td className="px-5 py-3 whitespace-nowrap">
+                        <span className="text-[12px]" style={{ color: ticket.assignedToName ? "var(--text-secondary)" : "var(--text-disabled)" }}>
+                          {ticket.assignedToName || "Unassigned"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 whitespace-nowrap text-[12px]" style={{ color: "var(--text-disabled)", fontVariantNumeric: "tabular-nums" }}>
                         {formatDate(ticket.createdAt)}
                       </td>
-                      {isAdmin && (
-                        <td className="px-5 py-3 text-right">
-                          <button
-                            onClick={() => setDeleteTarget(ticket)}
-                            title="Delete ticket"
-                            className="opacity-0 group-hover:opacity-100 w-6 h-6 rounded-md flex items-center justify-center ml-auto transition-all duration-150"
-                            style={{ color: "var(--text-disabled)" }}
-                            onMouseOver={e => { e.currentTarget.style.background = "var(--danger-subtle)"; e.currentTarget.style.color = "var(--danger)"; }}
-                            onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-disabled)"; }}
-                          >
-                            <Trash size={13} weight="regular" />
-                          </button>
-                        </td>
-                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -355,17 +384,6 @@ export function DashboardPage() {
           )}
         </div>
       </div>
-
-      {/* Confirm delete */}
-      <ConfirmModal
-        open={!!deleteTarget}
-        onClose={() => { if (!deleting) setDeleteTarget(null); }}
-        onConfirm={handleConfirmDelete}
-        loading={deleting}
-        title="Delete Ticket"
-        description={`Are you sure you want to delete "${deleteTarget?.title}"? This cannot be undone.`}
-        confirmLabel="Delete Ticket"
-      />
 
       <CreateTicketModal
         open={createModalOpen}

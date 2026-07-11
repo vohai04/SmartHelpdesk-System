@@ -33,6 +33,34 @@ namespace SmartHelpdesk.Application.Features.Tickets.Queries.GetTickets
                 query = query.Where(t => t.Title.Contains(request.Keyword) || t.Description.Contains(request.Keyword));
             }
 
+            if (!string.IsNullOrWhiteSpace(request.Status))
+            {
+                if (System.Enum.TryParse<SmartHelpdesk.Domain.Enums.TicketStatus>(request.Status, true, out var statusEnum))
+                {
+                    query = query.Where(t => t.Status == statusEnum);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Priority))
+            {
+                if (System.Enum.TryParse<SmartHelpdesk.Domain.Enums.TicketPriority>(request.Priority, true, out var priorityEnum))
+                {
+                    query = query.Where(t => t.Priority == priorityEnum);
+                }
+            }
+
+            if (request.CurrentUserRole == "Admin" || request.CurrentUserRole == "Agent")
+            {
+                if (request.AssignmentFilter == "Unassigned")
+                {
+                    query = query.Where(t => t.AssignedToId == null);
+                }
+                else if (request.AssignmentFilter == "AssignedToMe")
+                {
+                    query = query.Where(t => t.AssignedToId == request.CurrentUserId);
+                }
+            }
+
             var totalCount = await query.CountAsync(cancellationToken);
 
             var tickets = await query

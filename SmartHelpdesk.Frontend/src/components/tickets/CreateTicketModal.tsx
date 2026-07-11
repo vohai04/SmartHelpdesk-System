@@ -12,6 +12,7 @@ const createTicketSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters").max(100, "Title is too long"),
   description: z.string().min(10, "Description must be at least 10 characters").max(1000, "Description is too long"),
   categoryId: z.string().min(1, "Please select a category"),
+  requesterId: z.string().optional(),
 });
 
 type CreateTicketFormValues = z.infer<typeof createTicketSchema>;
@@ -22,15 +23,25 @@ interface CreateTicketModalProps {
   onSuccess: () => void;
 }
 
+import { useAuthStore } from "../../store/authStore";
+import { userService, type UserManagementDto } from "../../services/userService";
+
 export function CreateTicketModal({ open, onOpenChange, onSuccess }: CreateTicketModalProps) {
   const { toast } = useToast();
+  const { user } = useAuthStore();
+  const isAdminOrAgent = user?.role === "Admin" || user?.role === "Agent";
+
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [loadingCats, setLoadingCats] = useState(true);
+  const [customers, setCustomers] = useState<UserManagementDto[]>([]);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
 
   const {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<CreateTicketFormValues>({
     resolver: zodResolver(createTicketSchema),
@@ -39,6 +50,9 @@ export function CreateTicketModal({ open, onOpenChange, onSuccess }: CreateTicke
     },
   });
 
+  const [searchCustomer, setSearchCustomer] = useState("");
+  const [isCustomerDropdownOpen, setCustomerDropdownOpen] = useState(false);
+
   useEffect(() => {
     if (open) {
       setLoadingCats(true);
@@ -46,10 +60,20 @@ export function CreateTicketModal({ open, onOpenChange, onSuccess }: CreateTicke
         .then(setCategories)
         .catch(() => toast({ title: "Error", description: "Failed to load categories", variant: "destructive" }))
         .finally(() => setLoadingCats(false));
+
+      if (isAdminOrAgent) {
+        setLoadingCustomers(true);
+        userService.getUsers({ role: "Customer", pageSize: 100 })
+          .then(res => setCustomers(res.items))
+          .catch(() => console.error("Failed to load customers"))
+          .finally(() => setLoadingCustomers(false));
+      }
     } else {
       reset();
+      setSearchCustomer("");
+      setCustomerDropdownOpen(false);
     }
-  }, [open, reset, toast]);
+  }, [open, reset, toast, isAdminOrAgent]);
 
   const onSubmit = async (data: CreateTicketFormValues) => {
     try {
@@ -101,6 +125,112 @@ export function CreateTicketModal({ open, onOpenChange, onSuccess }: CreateTicke
             {/* Form */}
             <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
               
+              {/* Requester (Only for Admin/Agent) */}
+              {isAdminOrAgent && (
+                <div className="relative">
+                  <label className="block text-[12px] font-semibold mb-1.5 flex items-center gap-2" style={{ color: "var(--text-secondary)" }}>
+                    Requester (On behalf of) <span className="text-[10px] font-normal px-1.5 py-0.5 rounded" style={{ background: "var(--surface-bg)", color: "var(--text-disabled)" }}>Optional</span>
+                  </label>
+                  
+                  {/* Combobox Button */}
+                  <div 
+                    onClick={() => setCustomerDropdownOpen(!isCustomerDropdownOpen)}
+                    className="w-full h-9 px-3 rounded-lg text-[13px] transition-all duration-150 flex items-center justify-between cursor-pointer"
+                    style={{
+                      background: "var(--surface-default)",
+                      border: "1px solid var(--border-strong)",
+                      color: "var(--text-primary)",
+                      boxShadow: isCustomerDropdownOpen ? "0 0 0 3px var(--accent-subtle)" : "none",
+                      borderColor: isCustomerDropdownOpen ? "var(--accent)" : "var(--border-strong)"
+                    }}
+                  >
+                    <span className="truncate">
+                      {!watch("requesterId") 
+                        ? "Myself" 
+                        : customers.find(c => c.id === watch("requesterId"))?.fullName || "Myself"
+                      }
+                    </span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-disabled)" }}>
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </div>
+
+                  {/* Dropdown Options */}
+                  {isCustomerDropdownOpen && (
+                    <div 
+                      className="absolute left-0 right-0 mt-1 rounded-xl overflow-hidden z-50 flex flex-col"
+                      style={{ 
+                        background: "var(--surface-default)", 
+                        border: "1px solid var(--border-default)", 
+                        boxShadow: "var(--shadow-lg)",
+                        maxHeight: "200px" 
+                      }}
+                    >
+                      <div className="p-2 border-b" style={{ borderColor: "var(--border-subtle)", background: "var(--surface-bg)" }}>
+                        <input 
+                          type="text" 
+                          placeholder="Search customer..." 
+                          value={searchCustomer}
+                          onChange={e => setSearchCustomer(e.target.value)}
+                          className="w-full h-8 px-2.5 rounded-md text-[12px] outline-none"
+                          style={{ background: "var(--surface-default)", border: "1px solid var(--border-default)", color: "var(--text-primary)" }}
+                          autoFocus
+                        />
+                      </div>
+                      <div className="overflow-y-auto flex-1 p-1">
+                        <div 
+                          className="px-3 py-2 text-[13px] rounded-lg cursor-pointer transition-colors"
+                          style={{ 
+                            background: !watch("requesterId") ? "var(--accent-subtle)" : "transparent",
+                            color: !watch("requesterId") ? "var(--accent)" : "var(--text-secondary)"
+                          }}
+                          onMouseOver={e => !watch("requesterId") ? null : e.currentTarget.style.background = "var(--surface-bg)"}
+                          onMouseOut={e => e.currentTarget.style.background = !watch("requesterId") ? "var(--accent-subtle)" : "transparent"}
+                          onClick={() => { setValue("requesterId", ""); setCustomerDropdownOpen(false); setSearchCustomer(""); }}
+                        >
+                          Myself
+                        </div>
+                        
+                        {loadingCustomers ? (
+                          <div className="px-3 py-3 text-[12px] text-center" style={{ color: "var(--text-disabled)" }}>Loading...</div>
+                        ) : (
+                          customers
+                            .filter(c => c.fullName.toLowerCase().includes(searchCustomer.toLowerCase()) || c.email.toLowerCase().includes(searchCustomer.toLowerCase()))
+                            .map(c => (
+                              <div 
+                                key={c.id}
+                                className="px-3 py-2 text-[13px] rounded-lg cursor-pointer transition-colors flex flex-col"
+                                style={{ 
+                                  background: watch("requesterId") === c.id ? "var(--accent-subtle)" : "transparent",
+                                  color: watch("requesterId") === c.id ? "var(--accent)" : "var(--text-secondary)"
+                                }}
+                                onMouseOver={e => watch("requesterId") === c.id ? null : e.currentTarget.style.background = "var(--surface-bg)"}
+                                onMouseOut={e => e.currentTarget.style.background = watch("requesterId") === c.id ? "var(--accent-subtle)" : "transparent"}
+                                onClick={() => { setValue("requesterId", c.id); setCustomerDropdownOpen(false); setSearchCustomer(""); }}
+                              >
+                                <span className="font-medium" style={{ color: watch("requesterId") === c.id ? "var(--accent)" : "var(--text-primary)" }}>{c.fullName}</span>
+                                <span className="text-[11px]" style={{ color: watch("requesterId") === c.id ? "var(--accent)" : "var(--text-tertiary)" }}>{c.email}</span>
+                              </div>
+                          ))
+                        )}
+                        
+                        {!loadingCustomers && customers.filter(c => c.fullName.toLowerCase().includes(searchCustomer.toLowerCase()) || c.email.toLowerCase().includes(searchCustomer.toLowerCase())).length === 0 && (
+                           <div className="px-3 py-3 text-[12px] text-center" style={{ color: "var(--text-disabled)" }}>No customers found</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Backdrop to close dropdown when clicking outside */}
+                  {isCustomerDropdownOpen && (
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setCustomerDropdownOpen(false)}
+                    />
+                  )}
+                </div>
+              )}
+
               {/* Title */}
               <div>
                 <label className="block text-[12px] font-semibold mb-1.5" style={{ color: "var(--text-secondary)" }}>

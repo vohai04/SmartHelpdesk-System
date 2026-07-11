@@ -61,12 +61,14 @@ export interface GetTicketsParams {
   keyword?: string;
   status?: string;
   priority?: string;
+  assignmentFilter?: string; // "Unassigned" | "AssignedToMe"
 }
 
 export interface CreateTicketRequest {
   title: string;
   description: string;
   categoryId: string;
+  requesterId?: string;
 }
 
 export const ticketService = {
@@ -77,6 +79,7 @@ export const ticketService = {
     if (params?.keyword)    query.append('keyword',    params.keyword);
     if (params?.status)     query.append('status',     params.status);
     if (params?.priority)   query.append('priority',   params.priority);
+    if (params?.assignmentFilter) query.append('assignmentFilter', params.assignmentFilter);
 
     return axiosClient.get(`/tickets?${query.toString()}`) as Promise<PagedList<TicketDto>>;
   },

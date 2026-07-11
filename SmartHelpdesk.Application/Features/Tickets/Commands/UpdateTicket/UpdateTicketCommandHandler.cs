@@ -40,6 +40,24 @@ namespace SmartHelpdesk.Application.Features.Tickets.Commands.UpdateTicket
                 {
                     throw new Exception("Agents can only assign tickets to themselves.");
                 }
+
+                // Prevent assigning to self if already assigned to someone else
+                if (request.AssignedToId.HasValue && request.AssignedToId.Value == request.CurrentUserId)
+                {
+                    if (ticket.AssignedToId.HasValue && ticket.AssignedToId.Value != Guid.Empty && ticket.AssignedToId.Value != request.CurrentUserId)
+                    {
+                        throw new Exception("This ticket is already assigned to another agent. They must unassign it first.");
+                    }
+                }
+
+                // Prevent unassigning a ticket that belongs to another agent
+                if (request.AssignedToId.HasValue && request.AssignedToId.Value == Guid.Empty)
+                {
+                    if (ticket.AssignedToId.HasValue && ticket.AssignedToId.Value != Guid.Empty && ticket.AssignedToId.Value != request.CurrentUserId)
+                    {
+                        throw new Exception("You cannot unassign a ticket that is assigned to another agent.");
+                    }
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(request.Status))

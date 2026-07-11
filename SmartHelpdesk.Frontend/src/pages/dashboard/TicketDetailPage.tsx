@@ -9,7 +9,8 @@ import {
   User,
   CheckCircle,
   Tag,
-  X
+  X,
+  MagnifyingGlass
 } from "@phosphor-icons/react";
 import { useAuthStore } from "../../store/authStore";
 import { ticketService, type TicketDto, type TicketMessageDto, type AgentDto } from "../../services/ticketService";
@@ -56,6 +57,7 @@ export function TicketDetailPage() {
   const [ticket, setTicket] = useState<TicketDto | null>(null);
   const [messages, setMessages] = useState<TicketMessageDto[]>([]);
   const [agents, setAgents] = useState<AgentDto[]>([]);
+  const [searchAgent, setSearchAgent] = useState("");
   
   const [loading, setLoading] = useState(true);
   const [replyContent, setReplyContent] = useState("");
@@ -117,7 +119,7 @@ export function TicketDetailPage() {
 
   useEffect(() => {
     // Subscribe to SignalR to reload messages real-time
-    const unsubscribe = signalRService.subscribe((title, message) => {
+    const unsubscribe = signalRService.subscribe((_title, _message) => {
       // Check if this notification is relevant to the current ticket,
       // or just safely reload the messages stream
       if (id) {
@@ -141,7 +143,22 @@ export function TicketDetailPage() {
     try {
       const payload = { [field]: value };
       await ticketService.updateTicket(id, payload);
-      setTicket({ ...ticket, [field]: value } as TicketDto);
+      
+      let updatedTicket = { ...ticket, [field]: value } as TicketDto;
+      if (field === "assignedToId") {
+        if (value === "00000000-0000-0000-0000-000000000000" || value === null) {
+            updatedTicket.assignedToName = undefined;
+        } else {
+            const agent = agents.find(a => a.id === value);
+            if (agent) {
+                updatedTicket.assignedToName = agent.fullName;
+            } else if (value === user?.id) {
+                updatedTicket.assignedToName = user?.fullName;
+            }
+        }
+      }
+      
+      setTicket(updatedTicket);
       toast({ title: "Updated", description: `Ticket ${field} updated successfully.` });
     } catch (error) {
       console.error(error);
@@ -303,20 +320,40 @@ export function TicketDetailPage() {
                         </Avatar>
                         <span className="font-medium text-slate-900 text-xs truncate max-w-[100px]">{ticket.assignedToName || 'Unassigned'}</span>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-[200px]">
+                      <DropdownMenuContent align="end" className="w-[240px] max-h-[300px] overflow-y-auto">
                         <DropdownMenuLabel>Assign Ticket</DropdownMenuLabel>
                         <DropdownMenuSeparator />
+                        <div className="px-2 py-2 border-b border-slate-100 sticky top-0 bg-white z-10">
+                          <div className="relative flex items-center">
+                            <MagnifyingGlass className="absolute left-2.5 text-slate-400" size={14} />
+                            <input 
+                              type="text" 
+                              placeholder="Search agent..." 
+                              value={searchAgent}
+                              onChange={e => setSearchAgent(e.target.value)}
+                              onClick={e => e.stopPropagation()}
+                              onKeyDown={e => e.stopPropagation()}
+                              className="w-full h-8 pl-8 pr-2.5 rounded-md text-[12px] outline-none bg-slate-50/50 hover:bg-slate-100 focus:bg-slate-100 transition-colors text-slate-700 placeholder:text-slate-400"
+                              autoFocus
+                            />
+                          </div>
+                        </div>
                         <DropdownMenuItem onClick={() => handleUpdateTicket("assignedToId", "00000000-0000-0000-0000-000000000000")}>
                           <span className="text-slate-500 italic">Unassigned</span>
                         </DropdownMenuItem>
-                        {agents.map(a => (
+                        {agents
+                          .filter(a => a.fullName.toLowerCase().includes(searchAgent.toLowerCase()) || a.email.toLowerCase().includes(searchAgent.toLowerCase()))
+                          .map(a => (
                           <DropdownMenuItem key={a.id} onClick={() => handleUpdateTicket("assignedToId", a.id)}>
                             <Avatar className="h-5 w-5 mr-2">
                               <AvatarFallback className="text-[8px] bg-indigo-100 text-indigo-700">{a.fullName.charAt(0).toUpperCase()}</AvatarFallback>
                             </Avatar>
-                            <span className="truncate">{a.fullName}</span>
+                            <span className="truncate flex-1">{a.fullName}</span>
                           </DropdownMenuItem>
                         ))}
+                        {searchAgent && agents.filter(a => a.fullName.toLowerCase().includes(searchAgent.toLowerCase()) || a.email.toLowerCase().includes(searchAgent.toLowerCase())).length === 0 && (
+                          <div className="px-2 py-3 text-center text-xs text-slate-400">No agents found</div>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
@@ -334,11 +371,11 @@ export function TicketDetailPage() {
                         <button onClick={() => handleUpdateTicket("assignedToId", "00000000-0000-0000-0000-000000000000")} className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-md transition-colors w-full text-center">
                           Unassign
                         </button>
-                      ) : (
+                      ) : (!ticket.assignedToId || ticket.assignedToId === "00000000-0000-0000-0000-000000000000") ? (
                         <button onClick={() => handleUpdateTicket("assignedToId", user.id)} className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-md transition-colors w-full text-center">
                           Assign to me
                         </button>
-                      )}
+                      ) : null}
                     </div>
                   )}
                   {user?.role === 'Customer' && (

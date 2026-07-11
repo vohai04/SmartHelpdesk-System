@@ -11,7 +11,6 @@ namespace SmartHelpdesk.WebApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin")] // Only Admins can manage users
     public class UsersController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -22,6 +21,7 @@ namespace SmartHelpdesk.WebApi.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin,Agent")]
         public async Task<IActionResult> GetUsers([FromQuery] GetUsersQuery query)
         {
             var result = await _mediator.Send(query);
@@ -29,6 +29,7 @@ namespace SmartHelpdesk.WebApi.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> SoftDeleteUser(Guid id)
         {
             await _mediator.Send(new SoftDeleteUserCommand(id));
@@ -36,9 +37,20 @@ namespace SmartHelpdesk.WebApi.Controllers
         }
 
         [HttpPost("{id}/restore")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> RestoreUser(Guid id)
         {
             await _mediator.Send(new RestoreUserCommand(id));
+            return NoContent();
+        }
+
+        [HttpPut("{id}/role")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateUserRole(Guid id, [FromBody] SmartHelpdesk.Application.Features.Users.Commands.UpdateUserRole.UpdateUserRoleCommand command)
+        {
+            command.UserId = id;
+            var result = await _mediator.Send(command);
+            if (!result) return BadRequest("Could not update role. Ensure user exists and you are not demoting the last admin.");
             return NoContent();
         }
     }

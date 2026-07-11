@@ -12,6 +12,7 @@ import { ticketService, type TicketDto } from "../../services/ticketService";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { CreateTicketModal } from "../../components/tickets/CreateTicketModal";
 import { signalRService } from "../../services/signalrService";
+import { useAuthStore } from "../../store/authStore";
 
 // ─── Badges ───────────────────────────────────────────────────────────────────
 const STATUS_STYLE: Record<string, { bg: string; color: string; border: string }> = {
@@ -69,9 +70,13 @@ export function TicketsPage() {
   const [keyword, setKeyword] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [priorityFilter, setPriorityFilter] = useState<string>("");
+  const [assignmentFilter, setAssignmentFilter] = useState<string>("");
   const [pageNumber, setPageNumber] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+
+  const { user } = useAuthStore();
+  const isAdminOrAgent = user?.role === "Admin" || user?.role === "Agent";
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
@@ -85,6 +90,7 @@ export function TicketsPage() {
         keyword: keyword || undefined,
         status: statusFilter || undefined,
         priority: priorityFilter || undefined,
+        assignmentFilter: assignmentFilter || undefined,
       });
       setTickets(result.items ?? []);
       setTotalCount(result.totalCount ?? 0);
@@ -94,11 +100,11 @@ export function TicketsPage() {
     } finally {
       setLoading(false);
     }
-  }, [keyword, statusFilter, priorityFilter, pageNumber]);
+  }, [keyword, statusFilter, priorityFilter, assignmentFilter, pageNumber]);
 
   useEffect(() => {
     setPageNumber(1);
-  }, [keyword, statusFilter, priorityFilter]);
+  }, [keyword, statusFilter, priorityFilter, assignmentFilter]);
 
   useEffect(() => {
     const t = setTimeout(fetchTickets, 300);
@@ -118,7 +124,7 @@ export function TicketsPage() {
     };
   }, [fetchTickets]);
 
-  const hasActiveFilters = statusFilter !== "" || priorityFilter !== "";
+  const hasActiveFilters = statusFilter !== "" || priorityFilter !== "" || assignmentFilter !== "";
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -195,8 +201,13 @@ export function TicketsPage() {
                 ].map((item) => (
                   <DropdownMenu.Item
                     key={item.label}
-                    className="flex items-center px-3 py-1.5 text-[12px] font-medium rounded-lg outline-none cursor-pointer data-[highlighted]:bg-gray-100 dark:data-[highlighted]:bg-neutral-800 transition-colors"
-                    style={{ color: statusFilter === item.value ? "var(--accent)" : "var(--text-secondary)" }}
+                    className="flex items-center px-3 py-1.5 text-[12px] font-medium rounded-lg outline-none cursor-pointer transition-colors"
+                    style={{ 
+                      color: statusFilter === item.value ? "var(--accent)" : "var(--text-secondary)",
+                      background: statusFilter === item.value ? "var(--accent-subtle)" : "transparent"
+                    }}
+                    onMouseOver={e => e.currentTarget.style.background = "var(--surface-bg)"}
+                    onMouseOut={e => e.currentTarget.style.background = statusFilter === item.value ? "var(--accent-subtle)" : "transparent"}
                     onClick={() => setStatusFilter(item.value)}
                   >
                     {item.label}
@@ -237,8 +248,13 @@ export function TicketsPage() {
                 ].map((item) => (
                   <DropdownMenu.Item
                     key={item.label}
-                    className="flex items-center px-3 py-1.5 text-[12px] font-medium rounded-lg outline-none cursor-pointer data-[highlighted]:bg-gray-100 dark:data-[highlighted]:bg-neutral-800 transition-colors"
-                    style={{ color: priorityFilter === item.value ? "var(--accent)" : "var(--text-secondary)" }}
+                    className="flex items-center px-3 py-1.5 text-[12px] font-medium rounded-lg outline-none cursor-pointer transition-colors"
+                    style={{ 
+                      color: priorityFilter === item.value ? "var(--accent)" : "var(--text-secondary)",
+                      background: priorityFilter === item.value ? "var(--accent-subtle)" : "transparent"
+                    }}
+                    onMouseOver={e => e.currentTarget.style.background = "var(--surface-bg)"}
+                    onMouseOut={e => e.currentTarget.style.background = priorityFilter === item.value ? "var(--accent-subtle)" : "transparent"}
                     onClick={() => setPriorityFilter(item.value)}
                   >
                     {item.label}
@@ -248,9 +264,56 @@ export function TicketsPage() {
             </DropdownMenu.Portal>
           </DropdownMenu.Root>
 
+          {/* Assignment Filter (Admin/Agent Only) */}
+          {isAdminOrAgent && (
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button
+                  className="h-9 px-3 rounded-md text-[12px] font-medium border flex items-center gap-2 transition-all duration-150"
+                  style={{
+                    background: assignmentFilter ? "var(--surface-bg)" : "var(--surface-default)",
+                    borderColor: assignmentFilter ? "var(--border-strong)" : "var(--border-default)",
+                    color: assignmentFilter ? "var(--text-primary)" : "var(--text-secondary)",
+                  }}
+                >
+                  <Funnel size={14} weight={assignmentFilter ? "fill" : "regular"} />
+                  {assignmentFilter === "Unassigned" ? "Unassigned" : (assignmentFilter === "AssignedToMe" ? "Assigned to Me" : "Assignment")}
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                  className="min-w-[150px] rounded-xl p-1 shadow-lg animate-in fade-in zoom-in-95 duration-150"
+                  style={{ background: "var(--surface-default)", border: "1px solid var(--border-default)", zIndex: "var(--z-dropdown)" }}
+                  align="end"
+                  sideOffset={4}
+                >
+                  {[
+                    { label: "All Tickets", value: "" },
+                    { label: "Assigned to Me", value: "AssignedToMe" },
+                    { label: "Unassigned", value: "Unassigned" },
+                  ].map((item) => (
+                    <DropdownMenu.Item
+                      key={item.label}
+                      className="flex items-center px-3 py-1.5 text-[12px] font-medium rounded-lg outline-none cursor-pointer transition-colors"
+                      style={{ 
+                        color: assignmentFilter === item.value ? "var(--accent)" : "var(--text-secondary)",
+                        background: assignmentFilter === item.value ? "var(--accent-subtle)" : "transparent"
+                      }}
+                      onMouseOver={e => e.currentTarget.style.background = "var(--surface-bg)"}
+                      onMouseOut={e => e.currentTarget.style.background = assignmentFilter === item.value ? "var(--accent-subtle)" : "transparent"}
+                      onClick={() => setAssignmentFilter(item.value)}
+                    >
+                      {item.label}
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+          )}
+
           {hasActiveFilters && (
             <button
-              onClick={() => { setStatusFilter(""); setPriorityFilter(""); }}
+              onClick={() => { setStatusFilter(""); setPriorityFilter(""); setAssignmentFilter(""); }}
               className="h-9 px-2.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-900 transition-colors"
             >
               Clear
