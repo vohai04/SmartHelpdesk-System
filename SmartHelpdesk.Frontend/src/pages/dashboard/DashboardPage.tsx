@@ -1,131 +1,149 @@
 import { useEffect, useState } from "react";
 import {
-  Ticket, Clock, CheckCircle, Smile,
-  Trash2, AlertCircle, Loader2, TrendingUp,
+  Ticket,
+  Clock,
+  CheckCircle,
+  Smiley,
+  Trash,
+  Warning,
   ArrowUpRight,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useAuthStore } from "../../store/authStore";
 import { ticketService, type TicketDto } from "../../services/ticketService";
 import { ConfirmModal } from "../../components/ui/ConfirmModal";
 import { useToast } from "../../hooks/use-toast";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const STATUS_CONFIG: Record<string, { label: string; dotClass: string; textClass: string }> = {
-  Open:       { label: "Open",        dotClass: "bg-rose-500", textClass: "text-rose-700" },
-  InProgress: { label: "In Progress", dotClass: "bg-amber-500", textClass: "text-amber-700" },
-  Resolved:   { label: "Resolved",    dotClass: "bg-emerald-500", textClass: "text-emerald-700" },
-  Closed:     { label: "Closed",      dotClass: "bg-slate-400", textClass: "text-slate-600" },
+// ─── Config ───────────────────────────────────────────────────────────────────
+const STATUS: Record<string, { label: string; dot: string; color: string }> = {
+  Open:       { label: "Open",        dot: "#f87171", color: "#dc2626" },
+  InProgress: { label: "In Progress", dot: "#fbbf24", color: "#d97706" },
+  Resolved:   { label: "Resolved",    dot: "#4ade80", color: "#16a34a" },
+  Closed:     { label: "Closed",      dot: "#a1a1aa", color: "#71717a" },
 };
 
-const PRIORITY_CONFIG: Record<string, { label: string; textClass: string }> = {
-  Urgent: { label: "Urgent", textClass: "text-rose-600 font-medium" },
-  High:   { label: "High",   textClass: "text-orange-600 font-medium" },
-  Medium: { label: "Medium", textClass: "text-slate-700" },
-  Low:    { label: "Low",    textClass: "text-slate-500" },
+const PRIORITY: Record<string, { label: string; color: string }> = {
+  Urgent: { label: "Urgent", color: "#dc2626" },
+  High:   { label: "High",   color: "#ea580c" },
+  Medium: { label: "Medium", color: "#2563eb" },
+  Low:    { label: "Low",    color: "#71717a" },
 };
 
-function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUS_CONFIG[status] ?? { label: status, dotClass: "bg-slate-400", textClass: "text-slate-600" };
+function StatusPill({ status }: { status: string }) {
+  const cfg = STATUS[status] ?? { label: status, dot: "#a1a1aa", color: "#71717a" };
   return (
-    <div className="flex items-center gap-1.5">
-      <div className={`w-1.5 h-1.5 rounded-full ${cfg.dotClass}`} />
-      <span className={`text-[12px] font-medium ${cfg.textClass}`}>{cfg.label}</span>
-    </div>
-  );
-}
-
-function PriorityBadge({ priority }: { priority: string }) {
-  const cfg = PRIORITY_CONFIG[priority] ?? { label: priority, textClass: "text-slate-500" };
-  return (
-    <span className={`text-[12px] ${cfg.textClass}`}>
-      {cfg.label}
+    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium">
+      <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: cfg.dot }} />
+      <span style={{ color: cfg.color }}>{cfg.label}</span>
     </span>
   );
 }
 
+function PriorityLabel({ priority }: { priority: string }) {
+  const cfg = PRIORITY[priority] ?? { label: priority, color: "var(--text-tertiary)" };
+  return <span className="text-[11px] font-medium" style={{ color: cfg.color }}>{cfg.label}</span>;
+}
+
 function formatDate(d: string) {
-  return new Date(d).toLocaleDateString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
+  return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
-
 interface StatCardProps {
   label: string;
-  value: string | number;
-  sub?: string;
+  value: number | string;
   icon: React.ReactNode;
+  iconBg: string;
   trend?: string;
   trendPositive?: boolean;
-  loading?: boolean;
+  loading: boolean;
 }
 
-function StatCard({ label, value, icon, trend, trendPositive, loading }: StatCardProps) {
+function StatCard({ label, value, icon, iconBg, trend, trendPositive, loading }: StatCardProps) {
   return (
-    <div className="bg-white rounded-[12px] border border-slate-200 p-5 flex flex-col justify-between h-[120px]">
-      <div className="flex items-center justify-between text-slate-500">
-        <p className="text-[13px] font-medium">{label}</p>
-        <div className="text-slate-400 opacity-70">
+    <div
+      className="flex flex-col justify-between rounded-xl p-5 transition-all duration-150"
+      style={{
+        background: "var(--surface-default)",
+        border: "1px solid var(--border-default)",
+        boxShadow: "var(--shadow-xs)",
+        minHeight: "110px",
+      }}
+    >
+      <div className="flex items-start justify-between">
+        <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+          {label}
+        </p>
+        <div
+          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ background: iconBg }}
+        >
           {icon}
         </div>
       </div>
-      <div>
-        <p className="text-[28px] font-semibold text-slate-900 tracking-tight leading-none">
-          {loading ? <span className="animate-pulse text-slate-300">—</span> : value}
-        </p>
-        {trend && !loading && (
-          <div className="flex items-center gap-1 mt-2 text-[11px] font-medium">
-            <span className={trendPositive ? 'text-emerald-600 flex items-center gap-0.5' : 'text-slate-500 flex items-center gap-0.5'}>
-              {trendPositive ? <ArrowUpRight size={12} /> : null}
+
+      {loading ? (
+        <div className="skeleton h-8 w-16 mt-3" />
+      ) : (
+        <div className="mt-2">
+          <p className="text-[28px] font-bold leading-none tracking-tight" style={{ color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>
+            {value}
+          </p>
+          {trend && (
+            <p className="flex items-center gap-0.5 mt-1.5 text-[11px] font-medium" style={{ color: trendPositive ? "var(--success)" : "var(--text-disabled)" }}>
+              {trendPositive && <ArrowUpRight size={11} weight="bold" />}
               {trend}
-            </span>
-          </div>
-        )}
-      </div>
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── Page Header ──────────────────────────────────────────────────────────────
-
-function PageHeader({ title, subtitle }: { title: string; subtitle: string }) {
+// ─── Skeleton rows ────────────────────────────────────────────────────────────
+function TableSkeleton() {
   return (
-    <div className="mb-8">
-      <h1 className="text-[24px] font-semibold text-slate-900 tracking-tight">{title}</h1>
-      <p className="text-[14px] text-slate-500 mt-1">{subtitle}</p>
-    </div>
+    <>
+      {[1,2,3,4,5].map(i => (
+        <tr key={i} className="border-b" style={{ borderColor: "var(--border-subtle)" }}>
+          <td className="px-5 py-3.5">
+            <div className="skeleton h-3.5 w-48 mb-1.5" />
+            <div className="skeleton h-2.5 w-32" />
+          </td>
+          <td className="px-4 py-3.5"><div className="skeleton h-3 w-16" /></td>
+          <td className="px-4 py-3.5"><div className="skeleton h-3 w-12" /></td>
+          <td className="px-4 py-3.5"><div className="skeleton h-3 w-20" /></td>
+        </tr>
+      ))}
+    </>
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-
+// ─── Main ─────────────────────────────────────────────────────────────────────
 export function DashboardPage() {
-  const { user } = useAuthStore();
+  const { user }  = useAuthStore();
   const { toast } = useToast();
   const role      = user?.role ?? "Customer";
   const isAdmin   = role === "Admin";
   const isCustomer = role === "Customer";
 
-  const [tickets, setTickets]       = useState<TicketDto[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState<string | null>(null);
+  const [tickets,      setTickets]      = useState<TicketDto[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TicketDto | null>(null);
-  const [deleting, setDeleting]     = useState(false);
+  const [deleting,     setDeleting]     = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
     ticketService.getTickets({ pageNumber: 1, pageSize: 10 })
-      .then((r) => { if (!cancelled) setTickets(r.items ?? []); })
-      .catch(() => { if (!cancelled) setError("Failed to load tickets. Check your connection or restart the backend."); })
+      .then(r => { if (!cancelled) setTickets(r.items ?? []); })
+      .catch(() => { if (!cancelled) setError("Could not reach the backend. Make sure the API server is running."); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
-  // Stats
   const total    = tickets.length;
   const open     = tickets.filter(t => t.status === "Open").length;
   const resolved = tickets.filter(t => t.status === "Resolved" || t.status === "Closed").length;
@@ -136,44 +154,53 @@ export function DashboardPage() {
     try {
       await ticketService.deleteTicket(deleteTarget.id);
       setTickets(prev => prev.filter(t => t.id !== deleteTarget.id));
-      toast({ title: "Ticket deleted", description: `"${deleteTarget.title}" has been removed.` });
+      toast({ title: "Ticket deleted", description: `"${deleteTarget.title}" was removed.` });
       setDeleteTarget(null);
     } catch {
-      toast({ title: "Delete failed", description: "Could not delete ticket. Please try again.", variant: "destructive" });
+      toast({ title: "Error", description: "Could not delete this ticket.", variant: "destructive" });
     } finally {
       setDeleting(false);
     }
   };
 
   return (
-    <div className="space-y-8 max-w-6xl">
-      <PageHeader
-        title={isCustomer ? "My Dashboard" : "Overview"}
-        subtitle={`Welcome back, ${user?.fullName ?? ""}. ${isCustomer ? "Here are your support tickets." : "Here's what's happening across the helpdesk."}`}
-      />
+    <div className="space-y-6">
+      {/* Page title */}
+      <div>
+        <h1 className="text-[20px] font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
+          {isCustomer ? "My Dashboard" : "Overview"}
+        </h1>
+        <p className="mt-0.5 text-[13px]" style={{ color: "var(--text-tertiary)" }}>
+          Welcome back, <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>{user?.fullName}</span>.
+          {isCustomer ? " Here are your recent support tickets." : " Here's the current helpdesk activity."}
+        </p>
+      </div>
 
-      {/* ── Stats ── */}
-      <div className={`grid gap-4 ${isCustomer ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4"}`}>
+      {/* Stat cards */}
+      <div className={`grid gap-3 ${isCustomer ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2 xl:grid-cols-4"}`}>
         <StatCard
           label={isCustomer ? "My Tickets" : "Total Tickets"}
           value={total}
-          icon={<Ticket size={16} strokeWidth={2} />}
-          trend={isCustomer ? undefined : "+12% this month"}
+          icon={<Ticket size={14} weight="bold" style={{ color: "#2563eb" }} />}
+          iconBg="var(--accent-subtle)"
+          trend={isCustomer ? undefined : "+12% vs last month"}
           trendPositive
           loading={loading}
         />
         <StatCard
-          label={isCustomer ? "My Open" : "Open Tickets"}
+          label={isCustomer ? "Open" : "Open Tickets"}
           value={open}
-          icon={<Clock size={16} strokeWidth={2} />}
-          trend={open > 0 ? "Requires attention" : "No backlog"}
+          icon={<Clock size={14} weight="bold" style={{ color: "#d97706" }} />}
+          iconBg="var(--warning-subtle)"
+          trend={open > 0 ? "Needs attention" : "All clear"}
           trendPositive={open === 0}
           loading={loading}
         />
         <StatCard
-          label={isCustomer ? "My Resolved" : "Resolved / Closed"}
+          label={isCustomer ? "Resolved" : "Resolved / Closed"}
           value={resolved}
-          icon={<CheckCircle size={16} strokeWidth={2} />}
+          icon={<CheckCircle size={14} weight="bold" style={{ color: "#16a34a" }} />}
+          iconBg="var(--success-subtle)"
           trend="From current records"
           loading={loading}
         />
@@ -181,7 +208,8 @@ export function DashboardPage() {
           <StatCard
             label="Satisfaction"
             value="98%"
-            icon={<Smile size={16} strokeWidth={2} />}
+            icon={<Smiley size={14} weight="bold" style={{ color: "#d97706" }} />}
+            iconBg="var(--warning-subtle)"
             trend="Based on surveys"
             trendPositive
             loading={loading}
@@ -189,81 +217,115 @@ export function DashboardPage() {
         )}
       </div>
 
-      {/* ── Tickets Table ── */}
+      {/* Table */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[16px] font-semibold text-slate-900 tracking-tight">
-            {isCustomer ? "Recent Tickets" : "Latest Activity"}
-          </h2>
-          <span className="text-[12px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-[14px] font-semibold" style={{ color: "var(--text-primary)" }}>
+              {isCustomer ? "Recent Tickets" : "Latest Activity"}
+            </h2>
+            <p className="text-[11px] mt-0.5" style={{ color: "var(--text-disabled)" }}>
+              Showing up to 10 most recent records
+            </p>
+          </div>
+          <span
+            className="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
+            style={{
+              background: "var(--accent-subtle)",
+              color: "var(--accent)",
+              border: "1px solid var(--accent-border)",
+            }}
+          >
             {role}
           </span>
         </div>
 
-        <div className="bg-white rounded-[12px] border border-slate-200 overflow-hidden shadow-sm">
-          {/* Loading */}
-          {loading && (
-            <div className="flex flex-col items-center justify-center py-24 gap-3 text-slate-400">
-              <Loader2 size={24} className="animate-spin text-slate-300" />
-              <span className="text-[13px]">Loading tickets...</span>
-            </div>
-          )}
-
-          {/* Error */}
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{
+            background: "var(--surface-default)",
+            border: "1px solid var(--border-default)",
+            boxShadow: "var(--shadow-xs)",
+          }}
+        >
+          {/* Error state */}
           {!loading && error && (
-            <div className="flex flex-col items-center justify-center py-24 gap-3 text-red-500">
-              <AlertCircle size={24} />
-              <span className="text-[13px] text-center max-w-sm">{error}</span>
+            <div className="flex flex-col items-center justify-center py-20 gap-3">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "var(--danger-subtle)", border: "1px solid var(--danger-border)" }}>
+                <Warning size={20} weight="bold" style={{ color: "var(--danger)" }} />
+              </div>
+              <p className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>Failed to load tickets</p>
+              <p className="text-[12px] max-w-xs text-center" style={{ color: "var(--text-disabled)" }}>{error}</p>
             </div>
           )}
 
-          {/* Empty */}
+          {/* Empty state */}
           {!loading && !error && tickets.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-24 gap-3 text-slate-400">
-              <Ticket size={32} className="opacity-20" />
-              <span className="text-[13px]">No tickets found.</span>
+            <div className="flex flex-col items-center justify-center py-20 gap-3">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "var(--border-subtle)", border: "1px solid var(--border-default)" }}>
+                <Ticket size={20} weight="regular" style={{ color: "var(--text-disabled)" }} />
+              </div>
+              <p className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>No tickets yet</p>
+              <p className="text-[12px]" style={{ color: "var(--text-disabled)" }}>Tickets will appear here once created.</p>
             </div>
           )}
 
-          {/* Table */}
-          {!loading && !error && tickets.length > 0 && (
+          {/* Data table */}
+          {(loading || (!error && tickets.length > 0)) && (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50/50">
-                    <th className="text-[12px] font-medium text-slate-500 px-5 py-3 w-[40%]">Title</th>
-                    <th className="text-[12px] font-medium text-slate-500 px-4 py-3">Status</th>
-                    <th className="text-[12px] font-medium text-slate-500 px-4 py-3">Priority</th>
-                    <th className="text-[12px] font-medium text-slate-500 px-4 py-3">Created</th>
-                    {isAdmin && (
-                      <th className="text-[12px] font-medium text-slate-500 px-5 py-3 text-right">Actions</th>
-                    )}
+                  <tr style={{ borderBottom: "1px solid var(--border-default)" }}>
+                    {["Ticket", "Status", "Priority", "Created", ...(isAdmin ? [""] : [])].map(h => (
+                      <th
+                        key={h}
+                        className={`text-left text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5 ${h === "" ? "text-right" : ""}`}
+                        style={{ color: "var(--text-disabled)", background: "var(--surface-bg)" }}
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {tickets.map((ticket) => (
-                    <tr key={ticket.id} className="hover:bg-slate-50 transition-colors group">
-                      <td className="px-5 py-3.5 max-w-[200px]">
-                        <p className="font-medium text-[14px] text-slate-900 truncate">{ticket.title}</p>
-                        <p className="text-[12px] text-slate-500 truncate mt-0.5">{ticket.description}</p>
+                <tbody>
+                  {loading ? (
+                    <TableSkeleton />
+                  ) : tickets.map(ticket => (
+                    <tr
+                      key={ticket.id}
+                      className="group transition-colors duration-100"
+                      style={{ borderBottom: "1px solid var(--border-subtle)" }}
+                      onMouseOver={e => { (e.currentTarget as HTMLTableRowElement).style.background = "var(--surface-bg)"; }}
+                      onMouseOut={e => { (e.currentTarget as HTMLTableRowElement).style.background = "transparent"; }}
+                    >
+                      <td className="px-5 py-3">
+                        <p className="text-[13px] font-medium truncate max-w-[260px]" style={{ color: "var(--text-primary)" }}>
+                          {ticket.title}
+                        </p>
+                        <p className="text-[11px] truncate max-w-[260px] mt-0.5" style={{ color: "var(--text-disabled)" }}>
+                          {ticket.description}
+                        </p>
                       </td>
-                      <td className="px-4 py-3.5 whitespace-nowrap">
-                        <StatusBadge status={ticket.status} />
+                      <td className="px-5 py-3 whitespace-nowrap">
+                        <StatusPill status={ticket.status} />
                       </td>
-                      <td className="px-4 py-3.5 whitespace-nowrap">
-                        <PriorityBadge priority={ticket.priority} />
+                      <td className="px-5 py-3 whitespace-nowrap">
+                        <PriorityLabel priority={ticket.priority} />
                       </td>
-                      <td className="px-4 py-3.5 whitespace-nowrap text-slate-500 text-[12px]">
+                      <td className="px-5 py-3 whitespace-nowrap text-[11px]" style={{ color: "var(--text-disabled)", fontVariantNumeric: "tabular-nums" }}>
                         {formatDate(ticket.createdAt)}
                       </td>
                       {isAdmin && (
-                        <td className="px-5 py-3.5 text-right">
+                        <td className="px-5 py-3 text-right">
                           <button
                             onClick={() => setDeleteTarget(ticket)}
                             title="Delete ticket"
-                            className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                            className="opacity-0 group-hover:opacity-100 w-6 h-6 rounded-md flex items-center justify-center ml-auto transition-all duration-150"
+                            style={{ color: "var(--text-disabled)" }}
+                            onMouseOver={e => { e.currentTarget.style.background = "var(--danger-subtle)"; e.currentTarget.style.color = "var(--danger)"; }}
+                            onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-disabled)"; }}
                           >
-                            <Trash2 size={15} />
+                            <Trash size={13} weight="regular" />
                           </button>
                         </td>
                       )}
@@ -276,14 +338,14 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Confirm Delete Modal ── */}
+      {/* Confirm delete */}
       <ConfirmModal
         open={!!deleteTarget}
         onClose={() => { if (!deleting) setDeleteTarget(null); }}
         onConfirm={handleConfirmDelete}
         loading={deleting}
         title="Delete Ticket"
-        description={`Are you sure you want to delete "${deleteTarget?.title}"? This action cannot be undone.`}
+        description={`Are you sure you want to delete "${deleteTarget?.title}"? This cannot be undone.`}
         confirmLabel="Delete Ticket"
       />
     </div>

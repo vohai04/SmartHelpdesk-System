@@ -5,169 +5,131 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { authService } from "../../services/authService";
 import { useAuthStore } from "../../store/authStore";
-
-// UI Components
-import { Input } from "../../components/ui/input";
-import { Label } from "../../components/ui/label";
 import { useToast } from "../../hooks/use-toast";
+import { Eye, EyeSlash, CircleNotch } from "@phosphor-icons/react";
 
-// Schema for Validation
-const registerSchema = z.object({
-  fullName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
-  email: z.string().email({ message: "Please enter a valid email address." }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
-  confirmPassword: z.string()
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
+const schema = z.object({
+  fullName: z.string().min(2, "Full name must be at least 2 characters."),
+  email: z.string().email("Enter a valid email address."),
+  password: z.string().min(6, "Password must be at least 6 characters."),
+  confirmPassword: z.string(),
+}).refine(d => d.password === d.confirmPassword, {
+  message: "Passwords do not match.",
   path: ["confirmPassword"],
 });
+type FormValues = z.infer<typeof schema>;
 
-type RegisterFormValues = z.infer<typeof registerSchema>;
+const inputBase = "w-full h-9 px-3 rounded-md border text-[13px] bg-white outline-none transition-all duration-150 placeholder:text-[color:var(--text-disabled)] text-[color:var(--text-primary)]";
+const inputNormal = `${inputBase} border-[color:var(--border-default)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-border)]`;
+const inputError  = `${inputBase} border-[color:var(--danger)] focus:border-[color:var(--danger)] focus:ring-2 focus:ring-[color:var(--danger-border)]`;
 
 export function RegisterPage() {
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
   const { toast } = useToast();
   const { login } = useAuthStore();
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading]         = useState(false);
+  const [showPw, setShowPw]           = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
+  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
+    resolver: zodResolver(schema),
   });
 
-  const onSubmit = async (values: RegisterFormValues) => {
-    setIsLoading(true);
-    
+  const onSubmit = async (values: FormValues) => {
+    setLoading(true);
     try {
-      const data = await authService.register({
-        fullName: values.fullName,
-        email: values.email,
-        password: values.password
-      });
-      
-      // Auto login after successful registration
-      const safeToken = data.token || data.Token;
-      const safeUserId = data.userId || data.UserId || "";
-      const safeEmail = data.email || data.Email || "";
-      const safeFullName = data.fullName || data.FullName || "";
-      const safeRole = data.role || data.Role || "Customer";
-      
-      if (safeToken) {
-        login(safeToken, { 
-          id: safeUserId, 
-          email: safeEmail, 
-          fullName: safeFullName,
-          role: safeRole
-        });
+      const data = await authService.register({ fullName: values.fullName, email: values.email, password: values.password });
+      const token    = data.token    || data.Token;
+      const userId   = data.userId   || data.UserId   || "";
+      const email    = data.email    || data.Email    || "";
+      const fullName = data.fullName || data.FullName || "";
+      const role     = data.role     || data.Role     || "Customer";
+      if (token) {
+        login(token, { id: userId, email, fullName, role });
         navigate("/");
       } else {
         navigate("/auth/login");
       }
-      
-      toast({
-        title: "Registration Successful",
-        description: "Your account has been created successfully.",
-      });
-    } catch (error: unknown) {
-      interface ApiErrorResponse {
-        message?: string;
-        Message?: string;
-        Detailed?: string;
-        Errors?: Array<{ PropertyName: string; ErrorMessage: string }>;
-      }
-      
-      const err = error as { response?: { data?: ApiErrorResponse } };
-      const errData = err.response?.data;
-      
-      let errorMsg = "Registration failed. Please try again.";
-      if (errData) {
-        const validationErrors = errData.Errors?.map((e) => e.ErrorMessage).join(", ");
-        errorMsg = validationErrors || errData.message || errData.Message || errData.Detailed || errorMsg;
-      }
-      
-      toast({
-        title: "Registration Failed",
-        description: errorMsg,
-        variant: "destructive",
-      });
+      toast({ title: "Account created!", description: "Welcome to SmartDesk." });
+    } catch (err: unknown) {
+      interface Resp { message?: string; Message?: string; Errors?: { ErrorMessage: string }[] }
+      const d = (err as { response?: { data?: Resp } }).response?.data;
+      const msg = d?.Errors?.map(e => e.ErrorMessage).join(", ") || d?.message || d?.Message || "Registration failed.";
+      toast({ title: "Registration failed", description: msg, variant: "destructive" });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
+  const field = (name: keyof FormValues) => ({
+    className: errors[name] ? inputError : inputNormal,
+    ...register(name),
+  });
+
   return (
     <div>
-      <h2 className="text-[20px] font-semibold text-slate-900 mb-1">Create an account</h2>
-      <p className="text-slate-500 text-[14px] mb-6">Enter your details to get started.</p>
-      
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="space-y-2.5">
-          <Label htmlFor="fullName" className="text-slate-700 text-[13px] font-medium">Full name</Label>
-          <Input 
-            id="fullName" 
-            placeholder="John Doe" 
-            className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900 focus-visible:border-slate-900 h-10 rounded-lg shadow-sm"
-            {...register("fullName")}
-          />
-          {errors.fullName && <p className="text-red-500 text-[13px] mt-1">{errors.fullName.message}</p>}
+      <div className="mb-6">
+        <h1 className="text-[20px] font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+          Create account
+        </h1>
+        <p className="mt-1 text-[13px]" style={{ color: "var(--text-tertiary)" }}>
+          Get started with SmartDesk today.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        <div className="space-y-1.5">
+          <label className="block text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>Full name</label>
+          <input placeholder="John Smith" autoComplete="name" {...field("fullName")} />
+          {errors.fullName && <p className="text-[11px]" style={{ color: "var(--danger)" }}>{errors.fullName.message}</p>}
         </div>
 
-        <div className="space-y-2.5">
-          <Label htmlFor="email" className="text-slate-700 text-[13px] font-medium">Email address</Label>
-          <Input 
-            id="email" 
-            type="email" 
-            placeholder="name@company.com" 
-            className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900 focus-visible:border-slate-900 h-10 rounded-lg shadow-sm"
-            {...register("email")}
-          />
-          {errors.email && <p className="text-red-500 text-[13px] mt-1">{errors.email.message}</p>}
+        <div className="space-y-1.5">
+          <label className="block text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>Email</label>
+          <input type="email" placeholder="you@company.com" autoComplete="email" {...field("email")} />
+          {errors.email && <p className="text-[11px]" style={{ color: "var(--danger)" }}>{errors.email.message}</p>}
         </div>
 
-        <div className="space-y-2.5">
-          <Label htmlFor="password" className="text-slate-700 text-[13px] font-medium">Password</Label>
-          <Input 
-            id="password" 
-            type="password" 
-            placeholder="••••••••" 
-            className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900 focus-visible:border-slate-900 h-10 rounded-lg shadow-sm"
-            {...register("password")}
-          />
-          {errors.password && <p className="text-red-500 text-[13px] mt-1">{errors.password.message}</p>}
+        <div className="space-y-1.5">
+          <label className="block text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>Password</label>
+          <div className="relative">
+            <input type={showPw ? "text" : "password"} placeholder="Min. 6 characters" autoComplete="new-password" {...field("password")} className={`${errors.password ? inputError : inputNormal} pr-10`} />
+            <button type="button" onClick={() => setShowPw(p => !p)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded" style={{ color: "var(--text-disabled)" }} tabIndex={-1}>
+              {showPw ? <EyeSlash size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
+          {errors.password && <p className="text-[11px]" style={{ color: "var(--danger)" }}>{errors.password.message}</p>}
         </div>
 
-        <div className="space-y-2.5">
-          <Label htmlFor="confirmPassword" className="text-slate-700 text-[13px] font-medium">Confirm password</Label>
-          <Input 
-            id="confirmPassword" 
-            type="password" 
-            placeholder="••••••••" 
-            className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900 focus-visible:border-slate-900 h-10 rounded-lg shadow-sm"
-            {...register("confirmPassword")}
-          />
-          {errors.confirmPassword && <p className="text-red-500 text-[13px] mt-1">{errors.confirmPassword.message}</p>}
+        <div className="space-y-1.5">
+          <label className="block text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>Confirm password</label>
+          <div className="relative">
+            <input type={showConfirmPw ? "text" : "password"} placeholder="Repeat password" autoComplete="new-password" {...field("confirmPassword")} className={`${errors.confirmPassword ? inputError : inputNormal} pr-10`} />
+            <button type="button" onClick={() => setShowConfirmPw(p => !p)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded" style={{ color: "var(--text-disabled)" }} tabIndex={-1}>
+              {showConfirmPw ? <EyeSlash size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
+          {errors.confirmPassword && <p className="text-[11px]" style={{ color: "var(--danger)" }}>{errors.confirmPassword.message}</p>}
         </div>
 
-        <button 
-          type="submit" 
-          disabled={isLoading}
-          className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-[14px] h-10 rounded-lg shadow-sm transition-all flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed mt-6"
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full h-9 flex items-center justify-center gap-2 rounded-md text-[13px] font-medium text-white transition-all duration-150 disabled:opacity-55 disabled:cursor-not-allowed"
+          style={{ background: "var(--text-primary)", boxShadow: "var(--shadow-xs)" }}
+          onMouseOver={e => { if (!loading) e.currentTarget.style.background = "var(--text-secondary)"; }}
+          onMouseOut={e => { if (!loading) e.currentTarget.style.background = "var(--text-primary)"; }}
+          onMouseDown={e => { e.currentTarget.style.transform = "scale(0.99)"; }}
+          onMouseUp={e => { e.currentTarget.style.transform = "scale(1)"; }}
         >
-          {isLoading ? (
-            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          ) : "Sign up"}
+          {loading ? <><CircleNotch size={14} className="animate-spin" />Creating account...</> : "Create account"}
         </button>
       </form>
-      
-      <div className="mt-6 text-center text-[13px] text-slate-500">
-        Already have an account? <Link to="/auth/login" className="text-slate-900 font-medium hover:underline underline-offset-4">Sign in</Link>
-      </div>
+
+      <p className="mt-5 text-center text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+        Already have an account?{" "}
+        <Link to="/auth/login" className="font-medium" style={{ color: "var(--accent)" }}>Sign in</Link>
+      </p>
     </div>
   );
 }

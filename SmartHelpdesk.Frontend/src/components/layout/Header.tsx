@@ -1,13 +1,12 @@
-import { Bell, Search, Settings, LogOut, User, Menu } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { List, Bell, MagnifyingGlass, User, Gear, SignOut, CaretDown } from "@phosphor-icons/react";
 import { useAuthStore } from "../../store/authStore";
 import { authService } from "../../services/authService";
-import { useNavigate } from "react-router-dom";
 import { useUiStore } from "../../store/uiStore";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
@@ -23,75 +22,176 @@ export function Header() {
     navigate("/auth/login");
   };
 
+  const initials = (user?.fullName ?? "U")
+    .split(" ")
+    .map(n => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  const firstName = user?.fullName?.split(" ")[0] ?? "User";
+
   return (
-    <header className="h-[var(--header-height,64px)] bg-white border-b border-slate-200 flex items-center px-4 sm:px-6 sticky top-0 z-[var(--z-header,100)] gap-3 flex-shrink-0">
+    <header
+      className="flex items-center gap-3 px-5 flex-shrink-0"
+      style={{
+        height: "56px",
+        background: "#ffffff",
+        borderBottom: "1px solid #e7e5e4",
+        position: "sticky",
+        top: 0,
+        zIndex: 30,
+      }}
+    >
       {/* Hamburger */}
       <button
         onClick={toggleSidebar}
-        className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors flex-shrink-0"
         aria-label="Toggle sidebar"
+        className="flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-150 flex-shrink-0"
+        style={{ color: "#78716c" }}
+        onMouseEnter={e => { e.currentTarget.style.background = "#f5f5f4"; e.currentTarget.style.color = "#18181b"; }}
+        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#78716c"; }}
       >
-        <Menu size={18} />
+        <List size={18} weight="regular" />
       </button>
 
-      {/* Search bar — hidden on xs, visible from sm */}
-      <div className="hidden sm:flex flex-1 items-center bg-[#FAFAFA] border border-slate-200 px-3 py-1.5 rounded-md gap-2 max-w-sm transition-colors focus-within:border-slate-300 focus-within:bg-white">
-        <Search className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+      {/* Search */}
+      <div
+        className="hidden sm:flex items-center gap-2 flex-1 max-w-[280px] h-8 px-3 rounded-lg transition-all duration-150"
+        style={{
+          background: "#f5f5f4",
+          border: "1px solid #e7e5e4",
+        }}
+        onFocusCapture={e => {
+          e.currentTarget.style.background = "#fff";
+          e.currentTarget.style.borderColor = "#2563eb";
+          e.currentTarget.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.1)";
+        }}
+        onBlurCapture={e => {
+          e.currentTarget.style.background = "#f5f5f4";
+          e.currentTarget.style.borderColor = "#e7e5e4";
+          e.currentTarget.style.boxShadow = "none";
+        }}
+      >
+        <MagnifyingGlass size={13} weight="regular" style={{ color: "#a8a29e", flexShrink: 0 }} />
         <input
           type="text"
           placeholder="Search..."
-          className="bg-transparent border-none outline-none text-[13px] w-full text-slate-900 placeholder:text-slate-400"
+          className="flex-1 bg-transparent outline-none text-[13px]"
+          style={{ color: "#18181b" }}
         />
+        <kbd
+          className="hidden lg:inline-flex items-center rounded text-[10px] px-1 py-0.5 font-mono flex-shrink-0"
+          style={{ background: "#e7e5e4", color: "#a8a29e", border: "1px solid #d6d3d1" }}
+        >
+          ⌘K
+        </kbd>
       </div>
 
-      {/* Spacer on xs */}
-      <div className="flex-1 sm:hidden" />
+      <div className="flex-1" />
 
-      {/* Right icons */}
-      <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
-        {/* Mobile search icon */}
-        <button className="sm:hidden p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors">
-          <Search size={16} />
+      {/* Right side */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {/* Notification */}
+        <button
+          aria-label="Notifications"
+          className="relative flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-150"
+          style={{ color: "#78716c" }}
+          onMouseEnter={e => { e.currentTarget.style.background = "#f5f5f4"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+        >
+          <Bell size={17} weight="regular" />
+          <span
+            className="absolute top-1 right-1 w-2 h-2 rounded-full ring-2 ring-white"
+            style={{ background: "#2563eb" }}
+          />
         </button>
 
-        {/* Notifications */}
-        <button className="relative p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors">
-          <Bell size={16} />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-slate-900 rounded-full border border-white" />
-        </button>
-
-        <div className="w-px h-4 bg-slate-200 mx-2" />
+        <div className="w-px h-4 mx-1" style={{ background: "#e7e5e4" }} />
 
         {/* User dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 cursor-pointer group outline-none p-1 rounded-md hover:bg-slate-50 transition-colors border border-transparent">
-              <div className="h-6 w-6 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-medium text-[11px] flex-shrink-0 group-hover:bg-slate-300 transition-colors">
-                {user?.fullName?.charAt(0).toUpperCase() ?? "U"}
+            <button
+              className="flex items-center gap-2 px-2 py-1 rounded-lg transition-all duration-150 outline-none"
+              style={{ color: "#57534e" }}
+              onMouseEnter={e => { e.currentTarget.style.background = "#f5f5f4"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+            >
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+                style={{ background: "#18181b", color: "#fff" }}
+              >
+                {initials}
               </div>
+              <span className="hidden md:block text-[13px] font-medium" style={{ color: "#18181b" }}>
+                {firstName}
+              </span>
+              <CaretDown size={11} weight="bold" style={{ color: "#a8a29e" }} />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 mt-2">
-            <div className="px-2 py-2 mb-1">
-              <p className="text-[13px] font-medium text-slate-900 truncate">{user?.fullName}</p>
-              <p className="text-[11px] text-slate-500 truncate mt-0.5">{user?.email}</p>
+
+          <DropdownMenuContent
+            align="end"
+            className="p-1.5 mt-1"
+            style={{
+              width: "210px",
+              background: "#fff",
+              border: "1px solid #e7e5e4",
+              borderRadius: "12px",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)",
+              zIndex: 100,
+            }}
+          >
+            {/* User info */}
+            <div className="px-2.5 pt-2 pb-2">
+              <p className="text-[13px] font-semibold truncate" style={{ color: "#18181b" }}>
+                {user?.fullName}
+              </p>
+              <p className="text-[11px] truncate mt-0.5" style={{ color: "#a8a29e" }}>
+                {user?.email}
+              </p>
             </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer gap-2.5 text-slate-700">
-              <User className="h-3.5 w-3.5 text-slate-400" />
-              Profile
+
+            <DropdownMenuSeparator
+              className="my-1"
+              style={{ background: "#f5f5f4", height: "1px", margin: "4px 0" }}
+            />
+
+            <DropdownMenuItem asChild>
+              <Link
+                to="/profile"
+                className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] cursor-pointer transition-colors duration-100 outline-none"
+                style={{ color: "#57534e" }}
+              >
+                <User size={14} weight="regular" style={{ color: "#a8a29e" }} />
+                View profile
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer gap-2.5 text-slate-700">
-              <Settings className="h-3.5 w-3.5 text-slate-400" />
-              Settings
+
+            <DropdownMenuItem asChild>
+              <Link
+                to="/settings"
+                className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] cursor-pointer transition-colors duration-100 outline-none"
+                style={{ color: "#57534e" }}
+              >
+                <Gear size={14} weight="regular" style={{ color: "#a8a29e" }} />
+                Settings
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
+
+            <DropdownMenuSeparator
+              className="my-1"
+              style={{ background: "#f5f5f4", height: "1px", margin: "4px 0" }}
+            />
+
             <DropdownMenuItem
               onClick={handleLogout}
-              className="text-[#B91C1C] focus:text-[#B91C1C] focus:bg-[#FEF2F2] cursor-pointer gap-2.5 mt-1"
+              className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] cursor-pointer transition-colors duration-100 outline-none"
+              style={{ color: "#dc2626" }}
             >
-              <LogOut className="h-3.5 w-3.5" />
-              Log out
+              <SignOut size={14} weight="regular" />
+              Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
