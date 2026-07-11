@@ -1,3 +1,4 @@
+using SmartHelpdesk.Application.Interfaces;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -51,3 +52,4 @@ namespace SmartHelpdesk.Application.Features.Auth.Commands.Login
         }
     }
 }
+

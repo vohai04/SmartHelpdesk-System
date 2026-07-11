@@ -13,8 +13,35 @@ export interface TicketDto {
   createdByName: string;
   assignedToId: string | null;
   assignedToName: string | null;
+  isAiTriaged: boolean;
+  aiSentiment: string | null;
   createdAt: string;
   updatedAt: string | null;
+}
+
+export interface AttachmentDto {
+  id: string;
+  fileName: string;
+  fileUrl: string;
+  contentType: string;
+}
+
+export interface TicketMessageDto {
+  id: string;
+  ticketId: string;
+  senderId: string | null;
+  senderName: string;
+  content: string;
+  isInternalNote: boolean;
+  isAiGenerated: boolean;
+  createdAt: string;
+  attachments?: AttachmentDto[];
+}
+
+export interface AgentDto {
+  id: string;
+  fullName: string;
+  email: string;
 }
 
 export interface PagedList<T> {
@@ -53,6 +80,14 @@ export const ticketService = {
     return axiosClient.get(`/tickets?${query.toString()}`) as Promise<PagedList<TicketDto>>;
   },
 
+  getTicketById: async (id: string): Promise<TicketDto> => {
+    return axiosClient.get(`/tickets/${id}`);
+  },
+
+  updateTicket: async (id: string, data: { status?: string; priority?: string; assignedToId?: string | null }): Promise<void> => {
+    return axiosClient.put(`/tickets/${id}`, data);
+  },
+
   deleteTicket: async (id: string): Promise<void> => {
     return axiosClient.delete(`/tickets/${id}`);
   },
@@ -60,4 +95,32 @@ export const ticketService = {
   createTicket: async (data: CreateTicketRequest): Promise<{ id: string }> => {
     return axiosClient.post('/tickets', data) as Promise<{ id: string }>;
   },
+
+  getMessages: async (ticketId: string, pageNumber = 1, pageSize = 50): Promise<PagedList<TicketMessageDto>> => {
+    return axiosClient.get(`/tickets/${ticketId}/messages?pageNumber=${pageNumber}&pageSize=${pageSize}`);
+  },
+
+  sendMessage: async (ticketId: string, content: string, isInternalNote: boolean, attachmentIds?: string[]): Promise<TicketMessageDto> => {
+    return axiosClient.post(`/tickets/${ticketId}/messages`, { ticketId, content, isInternalNote, attachmentIds });
+  },
+
+  uploadAttachment: async (file: File, ticketId: string): Promise<AttachmentDto> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('ticketId', ticketId);
+    
+    return axiosClient.post('/attachments', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+
+  suggestReply: async (ticketId: string): Promise<{ suggestion: string }> => {
+    return axiosClient.get(`/tickets/${ticketId}/ai/suggest-reply`);
+  },
+
+  getAgents: async (): Promise<AgentDto[]> => {
+    return axiosClient.get('/tickets/agents');
+  }
 };

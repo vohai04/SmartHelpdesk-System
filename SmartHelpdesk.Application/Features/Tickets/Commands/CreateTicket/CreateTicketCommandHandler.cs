@@ -69,7 +69,8 @@ namespace SmartHelpdesk.Application.Features.Tickets.Commands.CreateTicket
                 // Notify agents
                 await scopedNotificationService.SendToAllAgentsAsync(
                     "Ticket Mới", 
-                    $"Một Ticket mới vừa được tạo bởi {customer?.FullName ?? "Unknown"}."
+                    $"Một Ticket mới vừa được tạo bởi {customer?.FullName ?? "Unknown"}.",
+                    ticket.Id.ToString()
                 );
 
                 // Run AI update

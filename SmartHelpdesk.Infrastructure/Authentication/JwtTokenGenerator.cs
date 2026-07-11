@@ -1,3 +1,4 @@
+using SmartHelpdesk.Application.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
@@ -48,3 +49,4 @@ namespace SmartHelpdesk.Infrastructure.Authentication
         }
     }
 }
+

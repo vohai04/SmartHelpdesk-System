@@ -15,6 +15,8 @@ namespace SmartHelpdesk.Application.Features.Tickets.DTOs
         public string CreatedByName { get; set; } = string.Empty;
         public Guid? AssignedToId { get; set; }
         public string? AssignedToName { get; set; }
+        public bool IsAiTriaged { get; set; }
+        public string? AiSentiment { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }

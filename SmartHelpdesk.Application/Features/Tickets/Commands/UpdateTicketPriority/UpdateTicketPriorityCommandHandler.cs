@@ -50,7 +50,8 @@ namespace SmartHelpdesk.Application.Features.Tickets.Commands.UpdateTicketPriori
             // 3. Notify Frontend via SignalR to trigger live reload
             await _notificationService.SendToAllAgentsAsync(
                 "Ticket Updated", 
-                $"Ticket {ticket.Id} priority updated by AI to {priority}"
+                $"Ticket {ticket.Id.ToString().Split('-')[0].ToUpper()} priority updated by AI to {priority}",
+                ticket.Id.ToString()
             );
 
             return true;

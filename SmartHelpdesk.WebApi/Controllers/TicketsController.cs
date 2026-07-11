@@ -14,19 +14,40 @@ using SmartHelpdesk.Application.Features.Tickets.Queries.AnalyzeTicketSentiment;
 using SmartHelpdesk.Application.Features.Tickets.Queries.SuggestTicketReply;
 using SmartHelpdesk.Application.Features.Tickets.Commands.UpdateTicket;
 using SmartHelpdesk.Application.Features.Tickets.DTOs;
+using SmartHelpdesk.Domain.Enums;
+using SmartHelpdesk.Domain.Entities;
+using SmartHelpdesk.Domain.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
+using System.Linq;
 
 namespace SmartHelpdesk.WebApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize] // Yêu cầu đăng nhập
+    [Authorize]
     public class TicketsController : ControllerBase
     {
         private readonly IMediator _mediator;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public TicketsController(IMediator mediator)
+        public TicketsController(IMediator mediator, IUnitOfWork unitOfWork)
         {
             _mediator = mediator;
+            _unitOfWork = unitOfWork;
+        }
+
+        // GET /api/tickets/agents — danh sách Agent để assign ticket
+        [HttpGet("agents")]
+        [Authorize(Roles = "Admin,Agent")]
+        public async Task<IActionResult> GetAgents()
+        {
+            var agents = await System.Threading.Tasks.Task.Run(() =>
+                _unitOfWork.Repository<User>().GetQueryable()
+                    .Where(u => u.Role == UserRole.Agent && !u.IsDeleted)
+                    .Select(u => new { u.Id, u.FullName, u.Email })
+                    .ToList()
+            );
+            return Ok(agents);
         }
 
         [HttpPost]
@@ -75,7 +96,7 @@ namespace SmartHelpdesk.WebApi.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin,SupportAgent")]
+        [Authorize(Roles = "Admin,Agent")]
         public async Task<IActionResult> UpdateTicket(Guid id, [FromBody] UpdateTicketCommand command)
         {
             command.TicketId = id;
@@ -119,7 +140,8 @@ namespace SmartHelpdesk.WebApi.Controllers
         [HttpGet("{ticketId}/messages")]
         public async Task<IActionResult> GetMessagesByTicketId(Guid ticketId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 50)
         {
-            var query = new GetMessagesByTicketIdQuery { TicketId = ticketId, PageNumber = pageNumber, PageSize = pageSize };
+            var role = User.FindFirstValue(ClaimTypes.Role);
+            var query = new GetMessagesByTicketIdQuery { TicketId = ticketId, UserRole = role, PageNumber = pageNumber, PageSize = pageSize };
             var result = await _mediator.Send(query);
             return Ok(result);
         }
@@ -144,7 +166,11 @@ namespace SmartHelpdesk.WebApi.Controllers
         [Authorize(Roles = "Admin,Agent")]
         public async Task<IActionResult> SuggestReply(Guid id)
         {
-            var result = await _mediator.Send(new SuggestTicketReplyQuery(id));
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            Guid.TryParse(userIdClaim, out Guid userId);
+
+            var query = new SuggestTicketReplyQuery(id) { CurrentUserId = userId };
+            var result = await _mediator.Send(query);
             return Ok(new { suggestion = result });
         }
     }

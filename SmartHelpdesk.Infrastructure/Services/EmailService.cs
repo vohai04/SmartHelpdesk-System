@@ -1,3 +1,4 @@
+using SmartHelpdesk.Application.Interfaces;
 using System;
 using System.Threading.Tasks;
 using MailKit.Net.Smtp;
@@ -49,3 +50,4 @@ namespace SmartHelpdesk.Infrastructure.Services
         }
     }
 }
+

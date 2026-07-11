@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
-namespace SmartHelpdesk.WebApi.Hubs
+namespace SmartHelpdesk.Infrastructure.Hubs
 {
     [Authorize]
     public class NotificationHub : Hub
