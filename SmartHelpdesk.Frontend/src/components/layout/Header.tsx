@@ -1,5 +1,5 @@
 import { useNavigate, Link } from "react-router-dom";
-import { List, Bell, MagnifyingGlass, User, Gear, SignOut, CaretDown } from "@phosphor-icons/react";
+import { List, MagnifyingGlass, User, Gear, SignOut, CaretDown } from "@phosphor-icons/react";
 import { useAuthStore } from "../../store/authStore";
 import { authService } from "../../services/authService";
 import { useUiStore } from "../../store/uiStore";
@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { NotificationBell } from "./NotificationBell";
 
 export function Header() {
   const { user, logout: storeLogout } = useAuthStore();
@@ -92,20 +93,7 @@ export function Header() {
 
       {/* Right side */}
       <div className="flex items-center gap-1 flex-shrink-0">
-        {/* Notification */}
-        <button
-          aria-label="Notifications"
-          className="relative flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-150"
-          style={{ color: "#78716c" }}
-          onMouseEnter={e => { e.currentTarget.style.background = "#f5f5f4"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-        >
-          <Bell size={17} weight="regular" />
-          <span
-            className="absolute top-1 right-1 w-2 h-2 rounded-full ring-2 ring-white"
-            style={{ background: "#2563eb" }}
-          />
-        </button>
+        <NotificationBell />
 
         <div className="w-px h-4 mx-1" style={{ background: "#e7e5e4" }} />
 

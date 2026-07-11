@@ -1,6 +1,6 @@
 using SmartHelpdesk.Domain.Entities;
 
-namespace SmartHelpdesk.Domain.Interfaces
+namespace SmartHelpdesk.Application.Interfaces
 {
     public interface IJwtTokenGenerator
     {

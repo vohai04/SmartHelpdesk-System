@@ -41,6 +41,7 @@ namespace SmartHelpdesk.Infrastructure
             services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
             services.AddTransient<IEmailService, EmailService>();
             services.AddTransient<IFileStorageService, LocalFileStorageService>();
+            services.AddScoped<INotificationService, SignalRNotificationService>();
 
             // Register AI Service
             services.AddHttpClient<IAiService, GeminiAiService>();

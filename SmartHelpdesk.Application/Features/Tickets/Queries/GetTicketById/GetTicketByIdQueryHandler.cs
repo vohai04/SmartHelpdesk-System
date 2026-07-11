@@ -41,6 +41,8 @@ namespace SmartHelpdesk.Application.Features.Tickets.Queries.GetTicketById
                     CreatedByName = t.CreatedBy != null ? t.CreatedBy.FullName : string.Empty,
                     AssignedToId = t.AssignedToId,
                     AssignedToName = t.AssignedTo != null ? t.AssignedTo.FullName : null,
+                    IsAiTriaged = t.IsAiTriaged,
+                    AiSentiment = t.AiSentiment,
                     CreatedAt = t.CreatedAt,
                     UpdatedAt = t.UpdatedAt
                 })

@@ -1,3 +1,4 @@
+using SmartHelpdesk.Application.Interfaces;
 using System;
 using System.Text.Json;
 using System.Threading;
@@ -53,3 +54,4 @@ namespace SmartHelpdesk.Infrastructure.Services
         }
     }
 }
+

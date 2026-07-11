@@ -27,9 +27,45 @@ namespace SmartHelpdesk.Infrastructure.Services
             return await GenerateContentAsync(prompt, cancellationToken);
         }
 
-        public async Task<string> SuggestReplyAsync(string content, CancellationToken cancellationToken = default)
+        public async Task<string> SuggestReplyAsync(string content, string currentUserName, string currentUserRole, CancellationToken cancellationToken = default)
         {
-            var prompt = $"Đóng vai là nhân viên hỗ trợ khách hàng chuyên nghiệp, hãy soạn một câu trả lời lịch sự, đồng cảm và đưa ra hướng giải quyết dựa trên thông tin ticket sau đây. Viết bằng tiếng Việt.\n\n{content}";
+            var prompt = $@"Bạn là AI đóng vai trò '{currentUserRole}' tại công ty với tên là '{currentUserName}'.
+Hotline của công ty là: 0123456789.
+
+Nhiệm vụ của bạn là đọc thông tin Ticket dưới đây và soạn thảo một phản hồi hỗ trợ khách hàng.
+Yêu cầu bắt buộc:
+1. Trả lời bằng tiếng Việt, giọng văn chuyên nghiệp, lịch sự, đồng cảm.
+2. NẾU tiêu đề và mô tả ticket không có ý nghĩa (ví dụ: chỉ toàn ký tự 'a', hoặc chuỗi ngẫu nhiên), hãy phản hồi theo đúng form mẫu sau (KHÔNG dùng ký tự in đậm như dấu sao):
+
+Xin chào Quý khách,
+
+Lời đầu tiên, em xin gửi lời chào trân trọng và cảm ơn Quý khách đã liên hệ với bộ phận Chăm sóc khách hàng của chúng em.
+
+Em đã nhận được yêu cầu hỗ trợ từ Quý khách. Tuy nhiên, em nhận thấy phần tiêu đề và mô tả chi tiết của yêu cầu hiện đang hiển thị các ký tự mặc định (hoặc không rõ ràng). Em hiểu rằng có thể đã có một sự cố kỹ thuật ngoài ý muốn xảy ra trong quá trình Quý khách gửi thông tin, hoặc đây là một thao tác thử nghiệm của Quý khách.
+
+Để em có thể hiểu rõ vấn đề và hỗ trợ Quý khách một cách nhanh chóng, chính xác nhất, Quý khách vui lòng phản hồi trực tiếp vào thư này và chia sẻ thêm cho em một số thông tin sau nhé:
+
+1. Vấn đề hoặc câu hỏi cụ thể mà Quý khách đang cần hỗ trợ là gì ạ?
+2. Hình ảnh hoặc video ảnh chụp màn hình mô tả lỗi (nếu có).
+3. Thông tin tài khoản hoặc Mã đơn hàng/Mã khách hàng liên quan (nếu có).
+
+Ngay khi nhận được phản hồi từ Quý khách, em sẽ lập tức kiểm tra và xử lý ngay cho mình. 
+
+Sự hài lòng của Quý khách là ưu tiên hàng đầu của chúng em. Rất mong nhận được phản hồi từ Quý khách!
+
+Chúc Quý khách một ngày tốt lành và nhiều niềm vui.
+
+Trân trọng,
+
+{currentUserName}
+Bộ phận {currentUserRole}
+Hotline: 0123456789 | Website: https://smarthelpdesk.com
+
+3. NẾU ticket CÓ nội dung rõ ràng, hãy trả lời bình thường nhưng phần chữ ký cuối cùng bắt buộc phải giống như trên (tên, role, hotline).
+4. TUYỆT ĐỐI KHÔNG SỬ DỤNG markdown in đậm (dấu **) ở bất kỳ đâu trong câu trả lời.
+
+Thông tin Ticket:
+{content}";
             return await GenerateContentAsync(prompt, cancellationToken);
         }
 

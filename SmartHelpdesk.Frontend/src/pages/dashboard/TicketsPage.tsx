@@ -322,7 +322,7 @@ export function TicketsPage() {
                     onMouseOut={e => { (e.currentTarget as HTMLTableRowElement).style.background = "transparent"; }}
                   >
                     <td className="px-5 py-3">
-                      <Link to={`/dashboard/tickets/${t.id}`} className="block">
+                      <Link to={`/tickets/${t.id}`} className="block">
                         <p className="text-[13px] font-semibold truncate hover:underline" style={{ color: "var(--text-primary)" }}>
                           {t.title}
                         </p>

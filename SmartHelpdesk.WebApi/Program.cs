@@ -10,8 +10,7 @@ using SmartHelpdesk.Infrastructure;
 using SmartHelpdesk.Infrastructure.Persistence;
 using SmartHelpdesk.WebApi.Middlewares;
 using SmartHelpdesk.Application.Interfaces;
-using SmartHelpdesk.WebApi.Hubs;
-using SmartHelpdesk.WebApi.Services;
+using SmartHelpdesk.Infrastructure.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,9 +30,10 @@ builder.Services.AddApplication();
 // Inject Infrastructure layer (DbContext, Repositories, UnitOfWork)
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// Add SignalR and NotificationService
+// Add SignalR is moved to Infrastructure, but we need it here for mapping if not added
+// Actually, builder.Services.AddSignalR() can stay here or move.
+// Let's keep AddSignalR here, but remove the scoped service registration
 builder.Services.AddSignalR();
-builder.Services.AddScoped<INotificationService, SignalRNotificationService>();
 
 // Add CORS
 builder.Services.AddCors(options =>

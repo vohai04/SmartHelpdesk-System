@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace SmartHelpdesk.Domain.Interfaces
+namespace SmartHelpdesk.Application.Interfaces
 {
     public interface ICacheService
     {

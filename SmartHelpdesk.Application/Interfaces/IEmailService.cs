@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace SmartHelpdesk.Domain.Interfaces
+namespace SmartHelpdesk.Application.Interfaces
 {
     public interface IEmailService
     {

@@ -24,10 +24,16 @@ namespace SmartHelpdesk.Application.Features.Messages.Queries.GetMessagesByTicke
             var query = _unitOfWork.Repository<TicketMessage>().GetQueryable()
                 .Where(m => m.TicketId == request.TicketId);
 
+            if (request.UserRole == Domain.Enums.UserRole.Customer.ToString())
+            {
+                query = query.Where(m => !m.IsInternalNote);
+            }
+
             var totalCount = await query.CountAsync(cancellationToken);
 
             var messages = await query
                 .Include(m => m.Sender)
+                .Include(m => m.Attachments)
                 .OrderBy(m => m.CreatedAt) // Sắp xếp cũ trước, mới sau
                 .Skip((request.PageNumber - 1) * request.PageSize)
                 .Take(request.PageSize)
@@ -40,7 +46,14 @@ namespace SmartHelpdesk.Application.Features.Messages.Queries.GetMessagesByTicke
                     Content = m.Content,
                     IsInternalNote = m.IsInternalNote,
                     IsAiGenerated = m.IsAiGenerated,
-                    CreatedAt = m.CreatedAt
+                    CreatedAt = m.CreatedAt,
+                    Attachments = m.Attachments.Select(a => new AttachmentDto
+                    {
+                        Id = a.Id,
+                        FileName = a.FileName,
+                        FileUrl = a.FilePath,
+                        ContentType = a.ContentType
+                    }).ToList()
                 })
                 .ToListAsync(cancellationToken);
 

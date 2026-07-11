@@ -7,6 +7,7 @@ import { DashboardPage } from "../pages/dashboard/DashboardPage";
 import { UsersPage } from "../pages/dashboard/UsersPage";
 import { ProfilePage } from "../pages/dashboard/ProfilePage";
 import { TicketsPage } from "../pages/dashboard/TicketsPage";
+import { TicketDetailPage } from "../pages/dashboard/TicketDetailPage";
 import { AuthGuard } from "../components/guard/AuthGuard";
 import { GuestGuard } from "../components/guard/GuestGuard";
 import { RoleGuard } from "../components/guard/RoleGuard";
@@ -91,6 +92,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true,       element: <DashboardPage /> },
       { path: "tickets",   element: <TicketsPage /> },
+      { path: "tickets/:id", element: <TicketDetailPage /> },
       { path: "profile",   element: <ProfilePage /> },
       {
         path: "users",

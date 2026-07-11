@@ -3,13 +3,15 @@ import { useAuthStore } from '../store/authStore';
 
 class SignalRService {
   private connection: HubConnection | null = null;
-  private listeners: ((title: string, message: string) => void)[] = [];
+  private listeners: ((title: string, message: string, ticketId?: string, messageId?: string) => void)[] = [];
 
   public startConnection() {
     if (this.connection) return;
 
+    const hubUrl = import.meta.env.VITE_HUB_URL || "https://localhost:7055/hubs/notifications";
+
     this.connection = new HubConnectionBuilder()
-      .withUrl("http://localhost:8080/hubs/notifications", {
+      .withUrl(hubUrl, {
         accessTokenFactory: () => useAuthStore.getState().token || ""
       })
       .withAutomaticReconnect()
@@ -20,12 +22,12 @@ class SignalRService {
       .then(() => console.log('SignalR Connected.'))
       .catch(err => console.error('SignalR Connection Error: ', err));
 
-    this.connection.on('ReceiveNotification', (payload: { title: string, message: string, date: string }) => {
-      this.listeners.forEach(listener => listener(payload.title, payload.message));
+    this.connection.on('ReceiveNotification', (payload: { title: string, message: string, ticketId?: string, messageId?: string, date: string }) => {
+      this.listeners.forEach(listener => listener(payload.title, payload.message, payload.ticketId, payload.messageId));
     });
   }
 
-  public subscribe(listener: (title: string, message: string) => void) {
+  public subscribe(listener: (title: string, message: string, ticketId?: string, messageId?: string) => void) {
     this.listeners.push(listener);
     return () => {
       this.listeners = this.listeners.filter(l => l !== listener);

@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using MediatR;
 using SmartHelpdesk.Application.Features.Messages.Commands.AddMessage;
 using SmartHelpdesk.Application.Features.Messages.DTOs;
-using SmartHelpdesk.Application.Features.Messages.DTOs;
 using SmartHelpdesk.Application.Interfaces;
 using SmartHelpdesk.Domain.Entities;
 using SmartHelpdesk.Domain.Interfaces;
@@ -50,6 +49,27 @@ namespace SmartHelpdesk.Application.Features.Messages.Commands.AddMessage
             ticket.UpdatedAt = DateTime.UtcNow;
             ticketRepo.Update(ticket);
 
+            // Link attachments if any
+            var attachmentsList = new List<AttachmentDto>();
+            if (request.AttachmentIds != null && request.AttachmentIds.Count > 0)
+            {
+                var attachmentRepo = _unitOfWork.Repository<Attachment>();
+                var attachments = await attachmentRepo.FindAsync(a => request.AttachmentIds.Contains(a.Id));
+                foreach (var att in attachments)
+                {
+                    att.TicketMessageId = message.Id;
+                    attachmentRepo.Update(att);
+                    
+                    attachmentsList.Add(new AttachmentDto
+                    {
+                        Id = att.Id,
+                        FileName = att.FileName,
+                        FileUrl = att.FilePath,
+                        ContentType = att.ContentType
+                    });
+                }
+            }
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             var userRepo = _unitOfWork.Repository<User>();
@@ -59,11 +79,11 @@ namespace SmartHelpdesk.Application.Features.Messages.Commands.AddMessage
             {
                 if (sender?.Role == Domain.Enums.UserRole.Customer)
                 {
-                    await _notificationService.SendToAllAgentsAsync("Tin nhắn mới", $"Ticket #{ticket.Id} có tin nhắn mới từ khách hàng.");
+                    await _notificationService.SendToAllAgentsAsync("Tin nhắn mới", $"Ticket #{ticket.Id.ToString().Split('-')[0].ToUpper()} có tin nhắn mới từ khách hàng.", ticket.Id.ToString(), message.Id.ToString());
                 }
                 else
                 {
-                    await _notificationService.SendToUserAsync(ticket.CreatedById, "Tin nhắn mới", $"Ticket #{ticket.Id} vừa được phản hồi.");
+                    await _notificationService.SendToUserAsync(ticket.CreatedById, "Tin nhắn mới", $"Ticket #{ticket.Id.ToString().Split('-')[0].ToUpper()} vừa được phản hồi.", ticket.Id.ToString(), message.Id.ToString());
                 }
             }
 
@@ -76,7 +96,8 @@ namespace SmartHelpdesk.Application.Features.Messages.Commands.AddMessage
                 Content = message.Content,
                 IsInternalNote = message.IsInternalNote,
                 IsAiGenerated = message.IsAiGenerated,
-                CreatedAt = message.CreatedAt
+                CreatedAt = message.CreatedAt,
+                Attachments = attachmentsList
             };
         }
     }

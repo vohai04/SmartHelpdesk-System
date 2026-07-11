@@ -12,5 +12,6 @@ namespace SmartHelpdesk.Application.Features.Messages.DTOs
         public bool IsInternalNote { get; set; }
         public bool IsAiGenerated { get; set; }
         public DateTime CreatedAt { get; set; }
+        public System.Collections.Generic.ICollection<AttachmentDto> Attachments { get; set; } = new System.Collections.Generic.List<AttachmentDto>();
     }
 }

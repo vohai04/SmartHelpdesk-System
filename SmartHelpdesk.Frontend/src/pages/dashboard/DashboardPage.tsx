@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Ticket,
   Clock,
@@ -314,9 +315,11 @@ export function DashboardPage() {
                       onMouseOut={e => { (e.currentTarget as HTMLTableRowElement).style.background = "transparent"; }}
                     >
                       <td className="px-5 py-3">
-                        <p className="text-[13px] font-medium truncate max-w-[260px]" style={{ color: "var(--text-primary)" }}>
-                          {ticket.title}
-                        </p>
+                        <Link to={`/tickets/${ticket.id}`} className="block hover:underline">
+                          <p className="text-[13px] font-medium truncate max-w-[260px]" style={{ color: "var(--text-primary)" }}>
+                            {ticket.title}
+                          </p>
+                        </Link>
                         <p className="text-[11px] truncate max-w-[260px] mt-0.5" style={{ color: "var(--text-disabled)" }}>
                           {ticket.description}
                         </p>

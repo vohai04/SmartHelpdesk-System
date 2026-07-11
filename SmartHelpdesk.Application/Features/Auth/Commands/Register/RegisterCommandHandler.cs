@@ -1,3 +1,4 @@
+using SmartHelpdesk.Application.Interfaces;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -60,3 +61,4 @@ namespace SmartHelpdesk.Application.Features.Auth.Commands.Register
         }
     }
 }
+
