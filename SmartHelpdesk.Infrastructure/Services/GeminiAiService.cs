@@ -13,7 +13,7 @@ namespace SmartHelpdesk.Infrastructure.Services
     {
         private readonly HttpClient _httpClient;
         private readonly string _apiKey;
-        private readonly string _modelUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+        private readonly string _modelUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
         public GeminiAiService(HttpClient httpClient, IConfiguration configuration)
         {
@@ -30,6 +30,15 @@ namespace SmartHelpdesk.Infrastructure.Services
         public async Task<string> SuggestReplyAsync(string content, CancellationToken cancellationToken = default)
         {
             var prompt = $"Đóng vai là nhân viên hỗ trợ khách hàng chuyên nghiệp, hãy soạn một câu trả lời lịch sự, đồng cảm và đưa ra hướng giải quyết dựa trên thông tin ticket sau đây. Viết bằng tiếng Việt.\n\n{content}";
+            return await GenerateContentAsync(prompt, cancellationToken);
+        }
+
+        public async Task<string> DeterminePriorityAsync(string title, string description, CancellationToken cancellationToken = default)
+        {
+            var prompt = $@"Bạn là hệ thống phân tích mức độ ưu tiên của vé hỗ trợ IT. Dựa trên tiêu đề và mô tả, hãy đánh giá mức độ khẩn cấp và trả về CHỈ 1 TỪ duy nhất là một trong các giá trị sau: Low, Medium, High, Urgent. Không trả về thêm bất kỳ ký tự nào khác.
+
+Tiêu đề: {title}
+Mô tả: {description}";
             return await GenerateContentAsync(prompt, cancellationToken);
         }
 

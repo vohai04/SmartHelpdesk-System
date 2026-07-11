@@ -2,7 +2,7 @@ import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 
 // Accessing environment variable, fallback to default local URL if not provided
-const baseURL = import.meta.env.VITE_API_URL || 'https://localhost:7055/api';
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 export const axiosClient = axios.create({
   baseURL,

@@ -10,6 +10,8 @@ import {
 } from "@phosphor-icons/react";
 import { ticketService, type TicketDto } from "../../services/ticketService";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { CreateTicketModal } from "../../components/tickets/CreateTicketModal";
+import { signalRService } from "../../services/signalrService";
 
 // ─── Badges ───────────────────────────────────────────────────────────────────
 const STATUS_STYLE: Record<string, { bg: string; color: string; border: string }> = {
@@ -71,6 +73,8 @@ export function TicketsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+
   const fetchTickets = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -101,6 +105,19 @@ export function TicketsPage() {
     return () => clearTimeout(t);
   }, [fetchTickets]);
 
+  useEffect(() => {
+    // Subscribe to SignalR notifications to trigger a realtime refresh
+    const unsubscribe = signalRService.subscribe((title, message) => {
+      console.log("Realtime notification received:", title, message);
+      // Re-fetch tickets to show updated AI priority
+      fetchTickets();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [fetchTickets]);
+
   const hasActiveFilters = statusFilter !== "" || priorityFilter !== "";
 
   return (
@@ -116,9 +133,9 @@ export function TicketsPage() {
           </p>
         </div>
         <button
-          className="h-9 px-4 rounded-lg text-[12px] font-semibold text-white flex items-center gap-2 transition-transform duration-150 active:scale-95 opacity-50 cursor-not-allowed"
+          onClick={() => setCreateModalOpen(true)}
+          className="h-9 px-4 rounded-lg text-[12px] font-semibold text-white flex items-center gap-2 transition-transform duration-150 active:scale-95"
           style={{ background: "var(--accent)", boxShadow: "var(--shadow-sm)" }}
-          disabled
         >
           <Plus size={14} weight="bold" />
           New Ticket
@@ -365,6 +382,12 @@ export function TicketsPage() {
           </div>
         )}
       </div>
+
+      <CreateTicketModal
+        open={createModalOpen}
+        onOpenChange={setCreateModalOpen}
+        onSuccess={fetchTickets}
+      />
     </div>
   );
 }

@@ -7,10 +7,12 @@ import {
   Trash,
   Warning,
   ArrowUpRight,
+  Plus,
 } from "@phosphor-icons/react";
 import { useAuthStore } from "../../store/authStore";
 import { ticketService, type TicketDto } from "../../services/ticketService";
 import { ConfirmModal } from "../../components/ui/ConfirmModal";
+import { CreateTicketModal } from "../../components/tickets/CreateTicketModal";
 import { useToast } from "../../hooks/use-toast";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -132,16 +134,19 @@ export function DashboardPage() {
   const [error,        setError]        = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TicketDto | null>(null);
   const [deleting,     setDeleting]     = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadDashboardTickets = () => {
     setLoading(true);
     setError(null);
     ticketService.getTickets({ pageNumber: 1, pageSize: 10 })
-      .then(r => { if (!cancelled) setTickets(r.items ?? []); })
-      .catch(() => { if (!cancelled) setError("Could not reach the backend. Make sure the API server is running."); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+      .then(r => setTickets(r.items ?? []))
+      .catch(() => setError("Could not reach the backend. Make sure the API server is running."))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadDashboardTickets();
   }, []);
 
   const total    = tickets.length;
@@ -166,14 +171,24 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Page title */}
-      <div>
-        <h1 className="text-[20px] font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          {isCustomer ? "My Dashboard" : "Overview"}
-        </h1>
-        <p className="mt-0.5 text-[13px]" style={{ color: "var(--text-tertiary)" }}>
-          Welcome back, <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>{user?.fullName}</span>.
-          {isCustomer ? " Here are your recent support tickets." : " Here's the current helpdesk activity."}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-[20px] font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
+            {isCustomer ? "My Dashboard" : "Overview"}
+          </h1>
+          <p className="mt-0.5 text-[13px]" style={{ color: "var(--text-tertiary)" }}>
+            Welcome back, <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>{user?.fullName}</span>.
+            {isCustomer ? " Here are your recent support tickets." : " Here's the current helpdesk activity."}
+          </p>
+        </div>
+        <button
+          onClick={() => setCreateModalOpen(true)}
+          className="h-9 px-4 rounded-lg text-[12px] font-semibold text-white flex items-center gap-2 transition-transform duration-150 active:scale-95"
+          style={{ background: "var(--accent)", boxShadow: "var(--shadow-sm)" }}
+        >
+          <Plus size={14} weight="bold" />
+          New Ticket
+        </button>
       </div>
 
       {/* Stat cards */}
@@ -347,6 +362,12 @@ export function DashboardPage() {
         title="Delete Ticket"
         description={`Are you sure you want to delete "${deleteTarget?.title}"? This cannot be undone.`}
         confirmLabel="Delete Ticket"
+      />
+
+      <CreateTicketModal
+        open={createModalOpen}
+        onOpenChange={setCreateModalOpen}
+        onSuccess={loadDashboardTickets}
       />
     </div>
   );

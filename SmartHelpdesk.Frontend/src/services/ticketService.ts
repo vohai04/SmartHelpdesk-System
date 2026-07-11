@@ -35,6 +35,12 @@ export interface GetTicketsParams {
   priority?: string;
 }
 
+export interface CreateTicketRequest {
+  title: string;
+  description: string;
+  categoryId: string;
+}
+
 export const ticketService = {
   getTickets: async (params?: GetTicketsParams): Promise<PagedList<TicketDto>> => {
     const query = new URLSearchParams();
@@ -49,5 +55,9 @@ export const ticketService = {
 
   deleteTicket: async (id: string): Promise<void> => {
     return axiosClient.delete(`/tickets/${id}`);
+  },
+
+  createTicket: async (data: CreateTicketRequest): Promise<{ id: string }> => {
+    return axiosClient.post('/tickets', data) as Promise<{ id: string }>;
   },
 };
