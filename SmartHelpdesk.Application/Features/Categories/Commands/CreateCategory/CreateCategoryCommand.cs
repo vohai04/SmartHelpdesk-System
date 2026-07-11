@@ -1,13 +1,12 @@
+using MediatR;
 using System;
 
-namespace SmartHelpdesk.Application.Features.Categories.DTOs
+namespace SmartHelpdesk.Application.Features.Categories.Commands.CreateCategory
 {
-    public class CategoryDto
+    public class CreateCategoryCommand : IRequest<Guid>
     {
-        public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string? AiRoutingKeywords { get; set; }
-        public bool IsDeleted { get; set; }
     }
 }

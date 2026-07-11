@@ -32,6 +32,14 @@ namespace SmartHelpdesk.Application.Features.Messages.Commands.AddMessage
                 throw new KeyNotFoundException($"Ticket with ID {request.TicketId} not found");
             }
 
+            if (request.CurrentUserRole == Domain.Enums.UserRole.Customer.ToString())
+            {
+                if (ticket.CreatedById != request.SenderId)
+                {
+                    throw new UnauthorizedAccessException("You do not have permission to send messages to this ticket.");
+                }
+            }
+
             var message = new TicketMessage
             {
                 TicketId = request.TicketId,

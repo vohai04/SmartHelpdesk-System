@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { List, MagnifyingGlass, User, Gear, SignOut, CaretDown } from "@phosphor-icons/react";
 import { useAuthStore } from "../../store/authStore";
@@ -11,11 +12,24 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { NotificationBell } from "./NotificationBell";
+import { GlobalSearchModal } from "./GlobalSearchModal";
 
 export function Header() {
   const { user, logout: storeLogout } = useAuthStore();
   const { toggleSidebar } = useUiStore();
   const navigate = useNavigate();
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const handleLogout = async () => {
     await authService.logout();
@@ -57,37 +71,43 @@ export function Header() {
       </button>
 
       {/* Search */}
-      <div
-        className="hidden sm:flex items-center gap-2 flex-1 max-w-[280px] h-8 px-3 rounded-lg transition-all duration-150"
+      <button
+        onClick={() => setSearchOpen(true)}
+        className="hidden sm:flex items-center gap-2 flex-1 max-w-[280px] h-8 px-3 rounded-lg transition-all duration-150 text-left outline-none"
         style={{
           background: "#f5f5f4",
           border: "1px solid #e7e5e4",
         }}
-        onFocusCapture={e => {
+        onMouseEnter={e => {
+          e.currentTarget.style.background = "#fff";
+          e.currentTarget.style.borderColor = "#2563eb";
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = "#f5f5f4";
+          e.currentTarget.style.borderColor = "#e7e5e4";
+        }}
+        onFocus={e => {
           e.currentTarget.style.background = "#fff";
           e.currentTarget.style.borderColor = "#2563eb";
           e.currentTarget.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.1)";
         }}
-        onBlurCapture={e => {
+        onBlur={e => {
           e.currentTarget.style.background = "#f5f5f4";
           e.currentTarget.style.borderColor = "#e7e5e4";
           e.currentTarget.style.boxShadow = "none";
         }}
       >
         <MagnifyingGlass size={13} weight="regular" style={{ color: "#a8a29e", flexShrink: 0 }} />
-        <input
-          type="text"
-          placeholder="Search..."
-          className="flex-1 bg-transparent outline-none text-[13px]"
-          style={{ color: "#18181b" }}
-        />
+        <span className="flex-1 text-[13px] text-stone-400">
+          Search tickets...
+        </span>
         <kbd
           className="hidden lg:inline-flex items-center rounded text-[10px] px-1 py-0.5 font-mono flex-shrink-0"
           style={{ background: "#e7e5e4", color: "#a8a29e", border: "1px solid #d6d3d1" }}
         >
           ⌘K
         </kbd>
-      </div>
+      </button>
 
       <div className="flex-1" />
 
@@ -184,6 +204,8 @@ export function Header() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <GlobalSearchModal open={searchOpen} onOpenChange={setSearchOpen} />
     </header>
   );
 }

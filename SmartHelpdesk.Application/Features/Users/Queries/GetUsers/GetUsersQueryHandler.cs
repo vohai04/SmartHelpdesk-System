@@ -23,7 +23,11 @@ namespace SmartHelpdesk.Application.Features.Users.Queries.GetUsers
         {
             var query = _unitOfWork.Repository<User>().GetQueryable();
 
-            if (!request.IncludeDeleted)
+            if (request.IncludeDeleted)
+            {
+                query = query.IgnoreQueryFilters().Where(u => u.IsDeleted || !u.IsActive);
+            }
+            else
             {
                 query = query.Where(u => u.IsActive && !u.IsDeleted);
             }

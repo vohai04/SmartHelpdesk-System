@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using MediatR;
 using SmartHelpdesk.Domain.Entities;
 using SmartHelpdesk.Domain.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace SmartHelpdesk.Application.Features.Users.Commands.RestoreUser
 {
@@ -18,7 +19,9 @@ namespace SmartHelpdesk.Application.Features.Users.Commands.RestoreUser
 
         public async Task<bool> Handle(RestoreUserCommand request, CancellationToken cancellationToken)
         {
-            var user = await _unitOfWork.Repository<User>().GetByIdAsync(request.UserId);
+            var user = await _unitOfWork.Repository<User>().GetQueryable()
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
             if (user == null)
             {
                 throw new Exception($"User with Id {request.UserId} not found.");

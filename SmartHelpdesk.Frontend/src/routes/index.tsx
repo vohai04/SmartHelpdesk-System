@@ -5,6 +5,7 @@ import { LoginPage } from "../pages/auth/LoginPage";
 import { RegisterPage } from "../pages/auth/RegisterPage";
 import { DashboardPage } from "../pages/dashboard/DashboardPage";
 import { UsersPage } from "../pages/dashboard/UsersPage";
+import { CategoriesPage } from "../pages/admin/CategoriesPage";
 import { ProfilePage } from "../pages/dashboard/ProfilePage";
 import { TicketsPage } from "../pages/dashboard/TicketsPage";
 import { TicketDetailPage } from "../pages/dashboard/TicketDetailPage";
@@ -99,6 +100,14 @@ export const router = createBrowserRouter([
         element: (
           <RoleGuard allowedRoles={["Admin"]}>
             <UsersPage />
+          </RoleGuard>
+        ),
+      },
+      {
+        path: "admin/categories",
+        element: (
+          <RoleGuard allowedRoles={["Admin"]}>
+            <CategoriesPage />
           </RoleGuard>
         ),
       },

@@ -24,5 +24,32 @@ namespace SmartHelpdesk.WebApi.Controllers
             var categories = await _mediator.Send(new GetCategoriesQuery());
             return Ok(categories);
         }
+
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateCategory([FromBody] SmartHelpdesk.Application.Features.Categories.Commands.CreateCategory.CreateCategoryCommand command)
+        {
+            var categoryId = await _mediator.Send(command);
+            return CreatedAtAction(nameof(GetCategories), new { id = categoryId }, new { Id = categoryId });
+        }
+
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateCategory(System.Guid id, [FromBody] SmartHelpdesk.Application.Features.Categories.Commands.UpdateCategory.UpdateCategoryCommand command)
+        {
+            command.Id = id;
+            var result = await _mediator.Send(command);
+            if (!result) return NotFound();
+            return NoContent();
+        }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteCategory(System.Guid id)
+        {
+            var result = await _mediator.Send(new SmartHelpdesk.Application.Features.Categories.Commands.DeleteCategory.DeleteCategoryCommand(id));
+            if (!result) return NotFound();
+            return NoContent();
+        }
     }
 }

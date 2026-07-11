@@ -54,13 +54,22 @@ namespace SmartHelpdesk.WebApi.Controllers
         public async Task<IActionResult> CreateTicket([FromBody] CreateTicketRequestDto request)
         {
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userRole = User.FindFirstValue(ClaimTypes.Role);
             Guid.TryParse(userIdClaim, out Guid userId);
+
+            Guid createdById = userId;
+
+            // If Admin/Agent and RequesterId is provided, create on behalf of Requester
+            if ((userRole == "Admin" || userRole == "Agent") && request.RequesterId.HasValue && request.RequesterId.Value != Guid.Empty)
+            {
+                createdById = request.RequesterId.Value;
+            }
 
             var command = new CreateTicketCommand(
                 request.Title,
                 request.Description,
                 request.CategoryId,
-                userId
+                createdById
             );
 
             var ticketId = await _mediator.Send(command);
@@ -128,6 +137,7 @@ namespace SmartHelpdesk.WebApi.Controllers
 
             // Chặn Customer gửi tin nhắn nội bộ
             var role = User.FindFirstValue(ClaimTypes.Role);
+            command.CurrentUserRole = role ?? string.Empty;
             if (role == SmartHelpdesk.Domain.Enums.UserRole.Customer.ToString())
             {
                 command.IsInternalNote = false;
@@ -141,7 +151,10 @@ namespace SmartHelpdesk.WebApi.Controllers
         public async Task<IActionResult> GetMessagesByTicketId(Guid ticketId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 50)
         {
             var role = User.FindFirstValue(ClaimTypes.Role);
-            var query = new GetMessagesByTicketIdQuery { TicketId = ticketId, UserRole = role, PageNumber = pageNumber, PageSize = pageSize };
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            Guid.TryParse(userIdClaim, out Guid userId);
+
+            var query = new GetMessagesByTicketIdQuery { TicketId = ticketId, UserRole = role, CurrentUserId = userId, PageNumber = pageNumber, PageSize = pageSize };
             var result = await _mediator.Send(query);
             return Ok(result);
         }

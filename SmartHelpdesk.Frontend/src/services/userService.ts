@@ -23,6 +23,7 @@ export interface GetUsersParams {
   pageNumber?: number;
   pageSize?: number;
   keyword?: string;
+  role?: string;
   includeDeleted?: boolean;
 }
 
@@ -37,7 +38,9 @@ export const userService = {
     if (params?.pageNumber) query.append('pageNumber', String(params.pageNumber));
     if (params?.pageSize)   query.append('pageSize',   String(params.pageSize));
     if (params?.keyword)    query.append('keyword',    params.keyword);
-    if (params?.includeDeleted) query.append('includeDeleted', 'true');
+    if (params?.role)       query.append('role',       params.role);
+    if (params?.includeDeleted !== undefined) query.append('includeDeleted', String(params.includeDeleted));
+
     return axiosClient.get(`/users?${query.toString()}`) as Promise<PagedList<UserManagementDto>>;
   },
 
@@ -55,5 +58,9 @@ export const userService = {
 
   restoreUser: async (id: string): Promise<void> => {
     return axiosClient.post(`/users/${id}/restore`, {});
+  },
+
+  updateUserRole: async (id: string, role: number): Promise<void> => {
+    return axiosClient.put(`/users/${id}/role`, { role });
   },
 };

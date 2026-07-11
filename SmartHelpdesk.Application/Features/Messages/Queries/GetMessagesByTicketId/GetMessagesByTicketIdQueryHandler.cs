@@ -21,11 +21,21 @@ namespace SmartHelpdesk.Application.Features.Messages.Queries.GetMessagesByTicke
 
         public async Task<PagedList<TicketMessageDto>> Handle(GetMessagesByTicketIdQuery request, CancellationToken cancellationToken)
         {
+            var ticket = await _unitOfWork.Repository<Ticket>().GetByIdAsync(request.TicketId);
+            if (ticket == null)
+            {
+                throw new System.Collections.Generic.KeyNotFoundException($"Ticket {request.TicketId} not found");
+            }
+
             var query = _unitOfWork.Repository<TicketMessage>().GetQueryable()
                 .Where(m => m.TicketId == request.TicketId);
 
             if (request.UserRole == Domain.Enums.UserRole.Customer.ToString())
             {
+                if (ticket.CreatedById != request.CurrentUserId)
+                {
+                    throw new System.UnauthorizedAccessException("You do not have permission to view messages for this ticket.");
+                }
                 query = query.Where(m => !m.IsInternalNote);
             }
 

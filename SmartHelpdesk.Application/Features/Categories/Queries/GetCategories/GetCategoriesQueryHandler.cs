@@ -23,11 +23,13 @@ namespace SmartHelpdesk.Application.Features.Categories.Queries.GetCategories
             var repository = _unitOfWork.Repository<Category>();
             var categories = await repository.GetAllAsync();
             
-            return categories.Select(c => new CategoryDto
+            return categories.Where(c => !c.IsDeleted).Select(c => new CategoryDto
             {
                 Id = c.Id,
                 Name = c.Name,
-                Description = c.Description
+                Description = c.Description,
+                AiRoutingKeywords = c.AiRoutingKeywords,
+                IsDeleted = c.IsDeleted
             }).ToList();
         }
     }
