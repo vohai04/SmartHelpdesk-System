@@ -12,6 +12,7 @@ using SmartHelpdesk.Application.Features.Tickets.Queries.GetTicketById;
 using SmartHelpdesk.Application.Features.Tickets.Commands.DeleteTicket;
 using SmartHelpdesk.Application.Features.Tickets.Queries.AnalyzeTicketSentiment;
 using SmartHelpdesk.Application.Features.Tickets.Queries.SuggestTicketReply;
+using SmartHelpdesk.Application.Features.Tickets.Commands.UpdateTicket;
 
 namespace SmartHelpdesk.WebApi.Controllers
 {
@@ -67,6 +68,22 @@ namespace SmartHelpdesk.WebApi.Controllers
                 return NotFound(new { message = $"Không tìm thấy Ticket với Id {id}" });
                 
             return Ok(result);
+        }
+
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,SupportAgent")]
+        public async Task<IActionResult> UpdateTicket(Guid id, [FromBody] UpdateTicketCommand command)
+        {
+            command.TicketId = id;
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (Guid.TryParse(userIdClaim, out Guid userId))
+            {
+                command.CurrentUserId = userId;
+            }
+            command.CurrentUserRole = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+
+            var result = await _mediator.Send(command);
+            return NoContent();
         }
 
         [HttpPost("{ticketId}/messages")]
