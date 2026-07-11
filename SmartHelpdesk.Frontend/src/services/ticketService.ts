@@ -8,8 +8,11 @@ export interface TicketDto {
   status: string;         // "Open" | "InProgress" | "Resolved" | "Closed"
   priority: string;       // "Low" | "Medium" | "High" | "Urgent"
   categoryId: string | null;
+  categoryName: string;
   createdById: string;
+  createdByName: string;
   assignedToId: string | null;
+  assignedToName: string | null;
   createdAt: string;
   updatedAt: string | null;
 }
@@ -28,6 +31,8 @@ export interface GetTicketsParams {
   pageNumber?: number;
   pageSize?: number;
   keyword?: string;
+  status?: string;
+  priority?: string;
 }
 
 export const ticketService = {
@@ -36,6 +41,8 @@ export const ticketService = {
     if (params?.pageNumber) query.append('pageNumber', String(params.pageNumber));
     if (params?.pageSize)   query.append('pageSize',   String(params.pageSize));
     if (params?.keyword)    query.append('keyword',    params.keyword);
+    if (params?.status)     query.append('status',     params.status);
+    if (params?.priority)   query.append('priority',   params.priority);
 
     return axiosClient.get(`/tickets?${query.toString()}`) as Promise<PagedList<TicketDto>>;
   },
