@@ -1,35 +1,74 @@
 import { useEffect, useState, useCallback } from "react";
-import { Search, UserX, RotateCcw, Loader2, AlertCircle, Users, Filter } from "lucide-react";
+import {
+  MagnifyingGlass,
+  UserMinus,
+  ArrowCounterClockwise,
+  CircleNotch,
+  Warning,
+  Users,
+  Funnel,
+} from "@phosphor-icons/react";
 import { userService, type UserManagementDto } from "../../services/userService";
 import { useToast } from "../../hooks/use-toast";
 import { ConfirmModal } from "../../components/ui/ConfirmModal";
 
-// ─── Role badge ───────────────────────────────────────────────────────────────
+// ─── Badges ───────────────────────────────────────────────────────────────────
+const ROLE_STYLE: Record<string, { bg: string; color: string; border: string }> = {
+  Admin:        { bg: "var(--accent-subtle)",   color: "var(--accent)",   border: "var(--accent-border)" },
+  SupportAgent: { bg: "#f0f9ff",                color: "#0369a1",         border: "#bae6fd" },
+  Customer:     { bg: "var(--border-subtle)",   color: "var(--text-tertiary)", border: "var(--border-default)" },
+};
+
 function RoleBadge({ role }: { role: string }) {
-  const map: Record<string, string> = {
-    Admin:         "bg-purple-50 text-purple-700 border-purple-200",
-    SupportAgent:  "bg-blue-50   text-blue-700   border-blue-200",
-    Customer:      "bg-gray-50   text-gray-600   border-gray-200",
-  };
+  const s = ROLE_STYLE[role] ?? ROLE_STYLE.Customer;
   return (
-    <span className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full border ${map[role] ?? "bg-gray-50 text-gray-600 border-gray-200"}`}>
-      {role}
+    <span
+      className="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
+      style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}
+    >
+      {role === "SupportAgent" ? "Agent" : role}
     </span>
   );
 }
 
-// ─── Status badge ──────────────────────────────────────────────────────────────
 function StatusBadge({ isDeleted }: { isDeleted: boolean }) {
   return isDeleted ? (
-    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
-      <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
+    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+      style={{ background: "var(--danger-subtle)", color: "var(--danger)", border: "1px solid var(--danger-border)" }}>
+      <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: "var(--danger)" }} />
       Deleted
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
-      <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
+    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+      style={{ background: "var(--success-subtle)", color: "var(--success)", border: "1px solid var(--success-border)" }}>
+      <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: "var(--success)" }} />
       Active
     </span>
+  );
+}
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+function RowSkeleton() {
+  return (
+    <>
+      {[1,2,3,4,5].map(i => (
+        <tr key={i} className="border-b" style={{ borderColor: "var(--border-subtle)" }}>
+          <td className="px-5 py-3">
+            <div className="flex items-center gap-3">
+              <div className="skeleton w-7 h-7 rounded-full" />
+              <div>
+                <div className="skeleton h-3.5 w-36 mb-1.5" />
+                <div className="skeleton h-2.5 w-28" />
+              </div>
+            </div>
+          </td>
+          <td className="px-5 py-3"><div className="skeleton h-3 w-14" /></td>
+          <td className="px-5 py-3"><div className="skeleton h-3 w-12" /></td>
+          <td className="px-5 py-3"><div className="skeleton h-3 w-20" /></td>
+          <td className="px-5 py-3"><div className="skeleton h-5 w-14 rounded-md ml-auto" /></td>
+        </tr>
+      ))}
+    </>
   );
 }
 
@@ -37,24 +76,21 @@ function formatDate(d: string) {
   return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 export function UsersPage() {
   const { toast } = useToast();
 
-  const [users, setUsers]               = useState<UserManagementDto[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState<string | null>(null);
-  const [keyword, setKeyword]           = useState("");
-  const [showDeleted, setShowDeleted]   = useState(false);
-  const [totalCount, setTotalCount]     = useState(0);
+  const [users,         setUsers]         = useState<UserManagementDto[]>([]);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState<string | null>(null);
+  const [keyword,       setKeyword]       = useState("");
+  const [showDeleted,   setShowDeleted]   = useState(false);
+  const [totalCount,    setTotalCount]    = useState(0);
 
-  // Delete modal state
-  const [deleteTarget, setDeleteTarget] = useState<UserManagementDto | null>(null);
-  const [isDeleting, setIsDeleting]     = useState(false);
-
-  // Restore confirm state
+  const [deleteTarget,  setDeleteTarget]  = useState<UserManagementDto | null>(null);
+  const [isDeleting,    setIsDeleting]    = useState(false);
   const [restoreTarget, setRestoreTarget] = useState<UserManagementDto | null>(null);
-  const [isRestoring, setIsRestoring]     = useState(false);
+  const [isRestoring,   setIsRestoring]   = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -69,14 +105,14 @@ export function UsersPage() {
       setUsers(result.items ?? []);
       setTotalCount(result.totalCount ?? 0);
     } catch {
-      setError("Failed to load users. Ensure the backend is running.");
+      setError("Failed to load users. Make sure the backend API is running.");
     } finally {
       setLoading(false);
     }
   }, [keyword, showDeleted]);
 
   useEffect(() => {
-    const t = setTimeout(() => fetchUsers(), 300);
+    const t = setTimeout(fetchUsers, 300);
     return () => clearTimeout(t);
   }, [fetchUsers]);
 
@@ -85,7 +121,7 @@ export function UsersPage() {
     setIsDeleting(true);
     try {
       await userService.softDeleteUser(deleteTarget.id);
-      toast({ title: "User deleted", description: `${deleteTarget.fullName} has been soft-deleted.` });
+      toast({ title: "User deactivated", description: `${deleteTarget.fullName} has been soft-deleted.` });
       setDeleteTarget(null);
       fetchUsers();
     } catch {
@@ -100,7 +136,7 @@ export function UsersPage() {
     setIsRestoring(true);
     try {
       await userService.restoreUser(restoreTarget.id);
-      toast({ title: "User restored", description: `${restoreTarget.fullName} has been restored.` });
+      toast({ title: "User restored", description: `${restoreTarget.fullName} is now active.` });
       setRestoreTarget(null);
       fetchUsers();
     } catch {
@@ -114,139 +150,178 @@ export function UsersPage() {
   const deletedCount = users.filter(u => u.isDeleted).length;
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Page header */}
+    <div className="space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="text-[22px] font-bold text-gray-900 tracking-tight">Users</h1>
-        <p className="text-[13px] text-gray-500 mt-1">Manage all user accounts in the system.</p>
+        <h1 className="text-[20px] font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
+          Users
+        </h1>
+        <p className="mt-0.5 text-[13px]" style={{ color: "var(--text-tertiary)" }}>
+          Manage all user accounts in the system.
+        </p>
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Total Users</p>
-          <p className="text-[26px] font-bold text-gray-900 mt-1">{loading ? "—" : totalCount}</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Active</p>
-          <p className="text-[26px] font-bold text-green-600 mt-1">{loading ? "—" : activeCount}</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Deleted</p>
-          <p className="text-[26px] font-bold text-red-500 mt-1">{loading ? "—" : deletedCount}</p>
-        </div>
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Total",   value: loading ? "-" : totalCount, color: "var(--text-primary)" },
+          { label: "Active",  value: loading ? "-" : activeCount, color: "var(--success)" },
+          { label: "Deleted", value: loading ? "-" : deletedCount, color: "var(--danger)" },
+        ].map(s => (
+          <div
+            key={s.label}
+            className="rounded-xl p-4"
+            style={{ background: "var(--surface-default)", border: "1px solid var(--border-default)", boxShadow: "var(--shadow-xs)" }}
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-disabled)" }}>{s.label}</p>
+            <p className="text-[24px] font-bold leading-none mt-1.5 tracking-tight" style={{ color: s.color, fontVariantNumeric: "tabular-nums" }}>{s.value}</p>
+          </div>
+        ))}
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-        <div className="relative flex-1 max-w-xs">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <div
+          className="relative flex items-center flex-1 max-w-xs h-8 px-2.5 rounded-md border transition-all duration-150"
+          style={{ background: "var(--surface-default)", borderColor: "var(--border-default)" }}
+          onFocusCapture={e => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 0 2px var(--accent-border)"; }}
+          onBlurCapture={e => { e.currentTarget.style.borderColor = "var(--border-default)"; e.currentTarget.style.boxShadow = "none"; }}
+        >
+          <MagnifyingGlass size={13} weight="regular" className="flex-shrink-0 mr-2" style={{ color: "var(--text-disabled)" }} />
           <input
             type="text"
             placeholder="Search by name or email..."
             value={keyword}
             onChange={e => setKeyword(e.target.value)}
-            className="w-full h-[36px] pl-8 pr-3 text-[13px] bg-white border border-gray-200 rounded-lg outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/15 transition-all"
+            className="flex-1 bg-transparent text-[12px] outline-none"
+            style={{ color: "var(--text-primary)" }}
           />
+          {loading && keyword && <CircleNotch size={12} className="animate-spin ml-1 flex-shrink-0" style={{ color: "var(--text-disabled)" }} />}
         </div>
 
         <button
           onClick={() => setShowDeleted(s => !s)}
-          className={`flex items-center gap-2 h-[36px] px-3.5 text-[13px] font-medium rounded-lg border transition-all ${
-            showDeleted
-              ? "bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
-              : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-          }`}
+          className="flex items-center gap-1.5 h-8 px-3 rounded-md text-[12px] font-medium border transition-all duration-150 flex-shrink-0"
+          style={{
+            background:   showDeleted ? "var(--danger-subtle)"   : "var(--surface-default)",
+            borderColor:  showDeleted ? "var(--danger-border)"   : "var(--border-default)",
+            color:        showDeleted ? "var(--danger)"           : "var(--text-secondary)",
+          }}
         >
-          <Filter size={13} />
-          {showDeleted ? "Hiding deleted" : "Show deleted"}
+          <Funnel size={13} weight={showDeleted ? "fill" : "regular"} />
+          {showDeleted ? "Showing deleted" : "Show deleted"}
         </button>
       </div>
 
       {/* Table */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-        {/* Loading */}
-        {loading && (
-          <div className="flex items-center justify-center py-20 gap-3">
-            <Loader2 size={22} className="animate-spin text-gray-300" />
-            <span className="text-[13px] text-gray-400">Loading users...</span>
-          </div>
-        )}
-
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{
+          background: "var(--surface-default)",
+          border: "1px solid var(--border-default)",
+          boxShadow: "var(--shadow-xs)",
+        }}
+      >
         {/* Error */}
         {!loading && error && (
-          <div className="flex flex-col items-center justify-center py-20 gap-3 text-red-500">
-            <AlertCircle size={22} />
-            <span className="text-[13px] text-gray-500 text-center max-w-xs">{error}</span>
-            <button onClick={fetchUsers} className="text-[13px] text-blue-600 font-medium hover:underline">Try again</button>
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center"
+              style={{ background: "var(--danger-subtle)", border: "1px solid var(--danger-border)" }}>
+              <Warning size={20} weight="bold" style={{ color: "var(--danger)" }} />
+            </div>
+            <p className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>Failed to load users</p>
+            <p className="text-[12px] text-center max-w-xs" style={{ color: "var(--text-disabled)" }}>{error}</p>
+            <button onClick={fetchUsers} className="text-[12px] font-medium" style={{ color: "var(--accent)" }}>Try again</button>
           </div>
         )}
 
         {/* Empty */}
         {!loading && !error && users.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="w-14 h-14 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center">
-              <Users size={22} className="text-gray-300" />
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center"
+              style={{ background: "var(--border-subtle)", border: "1px solid var(--border-default)" }}>
+              <Users size={20} weight="regular" style={{ color: "var(--text-disabled)" }} />
             </div>
-            <p className="text-[13px] text-gray-500 font-medium">No users found</p>
-            {keyword && <p className="text-[12px] text-gray-400">Try a different search term.</p>}
+            <p className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>No users found</p>
+            {keyword && <p className="text-[12px]" style={{ color: "var(--text-disabled)" }}>Try a different search.</p>}
           </div>
         )}
 
-        {/* Data */}
-        {!loading && !error && users.length > 0 && (
+        {/* Table */}
+        {(loading || (!error && users.length > 0)) && (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full border-collapse">
               <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 px-5 py-3">User</th>
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 px-4 py-3">Role</th>
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 px-4 py-3">Status</th>
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 px-4 py-3">Created</th>
-                  <th className="text-right text-[11px] font-semibold uppercase tracking-wider text-gray-500 px-5 py-3">Actions</th>
+                <tr style={{ borderBottom: "1px solid var(--border-default)", background: "var(--surface-bg)" }}>
+                  {["User", "Role", "Status", "Created", "Actions"].map(h => (
+                    <th
+                      key={h}
+                      className={`text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5 ${h === "Actions" ? "text-right" : "text-left"}`}
+                      style={{ color: "var(--text-disabled)" }}
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {users.map(u => (
+                {loading ? (
+                  <RowSkeleton />
+                ) : users.map(u => (
                   <tr
                     key={u.id}
-                    className={`border-b border-gray-50 last:border-0 transition-colors group ${u.isDeleted ? "opacity-60 bg-red-50/30" : "hover:bg-gray-50/50"}`}
+                    className="group transition-colors duration-100"
+                    style={{
+                      borderBottom: "1px solid var(--border-subtle)",
+                      opacity: u.isDeleted ? 0.65 : 1,
+                    }}
+                    onMouseOver={e => { (e.currentTarget as HTMLTableRowElement).style.background = "var(--surface-bg)"; }}
+                    onMouseOut={e => { (e.currentTarget as HTMLTableRowElement).style.background = "transparent"; }}
                   >
-                    <td className="px-5 py-3.5">
+                    <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold flex-shrink-0 ${u.isDeleted ? "bg-gray-100 text-gray-400" : "bg-gray-100 text-gray-700"}`}>
-                          {u.fullName?.charAt(0).toUpperCase() ?? "?"}
+                        <div
+                          className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+                          style={{
+                            background: u.isDeleted ? "var(--border-default)" : "var(--border-strong)",
+                            color: "var(--text-secondary)",
+                          }}
+                        >
+                          {(u.fullName ?? "?").charAt(0).toUpperCase()}
                         </div>
-                        <div>
-                          <p className="text-[13px] font-medium text-gray-900 truncate">{u.fullName}</p>
-                          <p className="text-[11px] text-gray-400 truncate">{u.email}</p>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-medium truncate" style={{ color: "var(--text-primary)" }}>{u.fullName}</p>
+                          <p className="text-[11px] truncate" style={{ color: "var(--text-disabled)" }}>{u.email}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3.5 whitespace-nowrap">
+                    <td className="px-5 py-3 whitespace-nowrap">
                       <RoleBadge role={u.role} />
                     </td>
-                    <td className="px-4 py-3.5 whitespace-nowrap">
+                    <td className="px-5 py-3 whitespace-nowrap">
                       <StatusBadge isDeleted={u.isDeleted} />
                     </td>
-                    <td className="px-4 py-3.5 whitespace-nowrap text-[12px] text-gray-500">
-                      {u.createdAt ? formatDate(u.createdAt) : "—"}
+                    <td className="px-5 py-3 whitespace-nowrap text-[11px]"
+                      style={{ color: "var(--text-disabled)", fontVariantNumeric: "tabular-nums" }}>
+                      {u.createdAt ? formatDate(u.createdAt) : "-"}
                     </td>
-                    <td className="px-5 py-3.5 text-right">
+                    <td className="px-5 py-3 text-right">
                       {u.isDeleted ? (
                         <button
                           onClick={() => setRestoreTarget(u)}
-                          className="inline-flex items-center gap-1.5 text-[12px] font-medium text-green-600 hover:text-green-700 hover:bg-green-50 px-2.5 py-1 rounded-lg transition-all"
+                          className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-md text-[11px] font-medium border transition-all duration-150"
+                          style={{ background: "var(--success-subtle)", color: "var(--success)", borderColor: "var(--success-border)" }}
                         >
-                          <RotateCcw size={12} />
+                          <ArrowCounterClockwise size={11} weight="bold" />
                           Restore
                         </button>
                       ) : (
                         <button
                           onClick={() => setDeleteTarget(u)}
-                          className="inline-flex items-center gap-1.5 text-[12px] font-medium text-gray-400 hover:text-red-600 hover:bg-red-50 px-2.5 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                          className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-md text-[11px] font-medium border opacity-0 group-hover:opacity-100 transition-all duration-150"
+                          style={{ background: "var(--danger-subtle)", color: "var(--danger)", borderColor: "var(--danger-border)" }}
                         >
-                          <UserX size={12} />
+                          <UserMinus size={11} weight="bold" />
                           Delete
                         </button>
                       )}
@@ -259,18 +334,16 @@ export function UsersPage() {
         )}
       </div>
 
-      {/* Soft delete confirm */}
+      {/* Modals */}
       <ConfirmModal
         open={!!deleteTarget}
         onClose={() => { if (!isDeleting) setDeleteTarget(null); }}
         onConfirm={handleSoftDelete}
         loading={isDeleting}
-        title="Soft Delete User"
+        title="Deactivate User"
         description={`"${deleteTarget?.fullName}" will be deactivated but not permanently removed. You can restore them later.`}
-        confirmLabel="Delete User"
+        confirmLabel="Deactivate"
       />
-
-      {/* Restore confirm */}
       <ConfirmModal
         open={!!restoreTarget}
         onClose={() => { if (!isRestoring) setRestoreTarget(null); }}
@@ -278,7 +351,7 @@ export function UsersPage() {
         loading={isRestoring}
         title="Restore User"
         description={`"${restoreTarget?.fullName}" will be reactivated and regain access to the system.`}
-        confirmLabel="Restore User"
+        confirmLabel="Restore"
       />
     </div>
   );

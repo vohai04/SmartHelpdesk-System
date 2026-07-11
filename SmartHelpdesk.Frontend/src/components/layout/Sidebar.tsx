@@ -1,32 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Ticket, Users, ChevronRight } from "lucide-react";
+import { SquaresFour, Ticket, Users } from "@phosphor-icons/react";
 import { useUiStore } from "../../store/uiStore";
 import { useAuthStore } from "../../store/authStore";
 
 interface NavItem {
   name: string;
   path: string;
-  icon: React.ReactNode;
-}
-
-function NavLink({ item, isActive, onClick }: { item: NavItem; isActive: boolean; onClick: () => void }) {
-  return (
-    <Link
-      to={item.path}
-      onClick={onClick}
-      className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-150 ${
-        isActive
-          ? "bg-blue-50 text-blue-700 font-medium"
-          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-      }`}
-    >
-      <span className={`flex-shrink-0 transition-colors ${isActive ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600"}`}>
-        {item.icon}
-      </span>
-      <span className="flex-1 truncate">{item.name}</span>
-      {isActive && <ChevronRight size={12} className="text-blue-500 ml-auto flex-shrink-0" />}
-    </Link>
-  );
+  icon: React.ElementType;
 }
 
 export function Sidebar() {
@@ -36,72 +16,143 @@ export function Sidebar() {
   const isAdmin = user?.role === "Admin";
 
   const navItems: NavItem[] = [
-    { name: "Dashboard", path: "/", icon: <LayoutDashboard size={16} strokeWidth={2} /> },
-    { name: "Tickets",   path: "/tickets", icon: <Ticket size={16} strokeWidth={2} /> },
-    ...(isAdmin ? [{ name: "Users", path: "/users", icon: <Users size={16} strokeWidth={2} /> }] : []),
+    { name: "Dashboard", path: "/",        icon: SquaresFour },
+    { name: "Tickets",   path: "/tickets", icon: Ticket },
+    ...(isAdmin ? [{ name: "Users", path: "/users", icon: Users }] : []),
   ];
 
-  const handleNavClick = () => {
-    if (window.innerWidth < 768) setSidebarOpen(false);
-  };
+  const initials = (user?.fullName ?? "U")
+    .split(" ")
+    .map(n => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
-  if (!isSidebarOpen) return null;
+  // On mobile: hidden when closed. On desktop: always visible.
+  const sidebarClasses = [
+    // Position + size
+    "fixed top-0 left-0 h-full z-50 flex flex-col",
+    // Mobile: slide in/out
+    isSidebarOpen ? "translate-x-0" : "-translate-x-full",
+    // Desktop: always show, relative positioning handled by flex parent
+    "md:relative md:translate-x-0 md:z-auto md:flex md:flex-shrink-0",
+    // Transition
+    "transition-transform duration-200 ease-out",
+  ].join(" ");
 
   return (
-    <>
-      {/* Mobile backdrop */}
+    <aside
+      className={sidebarClasses}
+      style={{
+        width: "220px",
+        background: "#ffffff",
+        borderRight: "1px solid #e7e5e4",
+        boxShadow: isSidebarOpen ? "4px 0 24px rgba(0,0,0,0.06)" : "none",
+      }}
+    >
+      {/* Brand */}
       <div
-        className="fixed inset-0 bg-black/25 z-30 md:hidden"
-        onClick={() => setSidebarOpen(false)}
-      />
-
-      {/* Sidebar */}
-      <aside className="
-        fixed inset-y-0 left-0 z-40 flex flex-col
-        w-[var(--sidebar-width,220px)] bg-white border-r border-gray-200
-        md:relative md:z-auto
-        animate-slide-in md:animate-none
-      ">
-        {/* Brand */}
-        <div className="h-[var(--header-height,56px)] flex items-center px-4 border-b border-gray-100 flex-shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-gray-900 flex items-center justify-center">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2z"/>
-                <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/>
-              </svg>
-            </div>
-            <span className="font-semibold text-[14px] text-gray-900">SmartDesk</span>
-          </div>
+        className="flex items-center gap-2.5 px-4 flex-shrink-0"
+        style={{
+          height: "56px",
+          borderBottom: "1px solid #f5f5f4",
+        }}
+      >
+        <div
+          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ background: "#18181b" }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2z"/>
+            <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/>
+          </svg>
         </div>
+        <span
+          className="font-semibold text-[14px] tracking-tight"
+          style={{ color: "#18181b" }}
+        >
+          SmartDesk
+        </span>
+      </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
-          <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">
-            Navigation
-          </div>
-          {navItems.map(item => {
-            const isActive = location.pathname === item.path || (item.path !== "/" && location.pathname.startsWith(item.path));
-            return <NavLink key={item.path} item={item} isActive={isActive} onClick={handleNavClick} />;
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto py-3 px-2">
+        <p
+          className="px-2 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-widest"
+          style={{ color: "#a8a29e" }}
+        >
+          Menu
+        </p>
+
+        <div className="space-y-0.5">
+          {navItems.map(({ name, path, icon: Icon }) => {
+            const isActive =
+              location.pathname === path ||
+              (path !== "/" && location.pathname.startsWith(path));
+
+            return (
+              <Link
+                key={path}
+                to={path}
+                onClick={() => setSidebarOpen(false)}
+                className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 group"
+                style={{
+                  background: isActive ? "#eff6ff" : "transparent",
+                  color:      isActive ? "#2563eb" : "#57534e",
+                }}
+                onMouseEnter={e => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = "#fafaf9";
+                    e.currentTarget.style.color = "#18181b";
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color = "#57534e";
+                  }
+                }}
+              >
+                <Icon
+                  size={16}
+                  weight={isActive ? "fill" : "regular"}
+                  style={{ color: isActive ? "#2563eb" : "#a8a29e", flexShrink: 0 }}
+                />
+                {name}
+              </Link>
+            );
           })}
-        </nav>
-
-        {/* User footer */}
-        <div className="border-t border-gray-100 p-3 flex-shrink-0">
-          <Link
-            to="/profile"
-            className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors group"
-          >
-            <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-[11px] font-semibold text-gray-700 flex-shrink-0 group-hover:bg-gray-300 transition-colors">
-              {user?.fullName?.charAt(0).toUpperCase() ?? "U"}
-            </div>
-            <div className="min-w-0">
-              <p className="text-[12px] font-medium text-gray-900 truncate">{user?.fullName ?? "User"}</p>
-              <p className="text-[11px] text-gray-500 truncate">{user?.role}</p>
-            </div>
-          </Link>
         </div>
-      </aside>
-    </>
+      </nav>
+
+      {/* User footer */}
+      <div
+        className="p-2 flex-shrink-0"
+        style={{ borderTop: "1px solid #f5f5f4" }}
+      >
+        <Link
+          to="/profile"
+          className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all duration-150"
+          style={{ color: "#57534e" }}
+          onMouseEnter={e => { e.currentTarget.style.background = "#fafaf9"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+        >
+          <div
+            className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+            style={{ background: "#e7e5e4", color: "#57534e" }}
+          >
+            {initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[12px] font-semibold truncate" style={{ color: "#18181b" }}>
+              {user?.fullName ?? "User"}
+            </p>
+            <p className="text-[11px] truncate" style={{ color: "#a8a29e" }}>
+              {user?.role}
+            </p>
+          </div>
+        </Link>
+      </div>
+    </aside>
   );
 }

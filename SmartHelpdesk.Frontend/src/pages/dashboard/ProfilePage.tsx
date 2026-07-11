@@ -1,104 +1,248 @@
 import { useAuthStore } from "../../store/authStore";
-import { Shield, Mail, User, Pencil, Calendar } from "lucide-react";
+import { ShieldCheck, EnvelopeSimple, User, IdentificationCard, PencilSimple, CalendarBlank } from "@phosphor-icons/react";
 
-function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="flex items-start gap-4 py-4 border-b border-gray-100 last:border-0">
-      <div className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center flex-shrink-0 text-gray-400 mt-0.5">
-        {icon}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">{label}</p>
-        <p className="text-[14px] font-medium text-gray-900 mt-0.5 break-all">{value}</p>
-      </div>
-    </div>
-  );
-}
-
-const ROLE_STYLE: Record<string, { label: string; cls: string }> = {
-  Admin:        { label: "Administrator",  cls: "bg-purple-50 text-purple-700 border-purple-200" },
-  SupportAgent: { label: "Support Agent",  cls: "bg-blue-50   text-blue-700   border-blue-200" },
-  Customer:     { label: "Customer",       cls: "bg-gray-50   text-gray-600   border-gray-200" },
+const ROLE_CFG: Record<string, { label: string; bg: string; color: string; ring: string }> = {
+  Admin:        { label: "Administrator", bg: "#eff6ff", color: "#1d4ed8", ring: "#bfdbfe" },
+  SupportAgent: { label: "Support Agent", bg: "#f0f9ff", color: "#0369a1", ring: "#bae6fd" },
+  Customer:     { label: "Customer",      bg: "#fafaf9", color: "#78716c", ring: "#e7e5e4" },
 };
+
+const AVATAR_COLORS = ["#18181b", "#1d4ed8", "#0369a1", "#15803d", "#9333ea", "#b45309"];
+
+function getAvatarColor(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
 
 export function ProfilePage() {
   const { user } = useAuthStore();
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <p className="text-gray-400 text-[14px]">Not authenticated.</p>
+      <div className="flex items-center justify-center py-32">
+        <p style={{ color: "#a8a29e", fontSize: "13px" }}>Not authenticated.</p>
       </div>
     );
   }
 
-  const roleCfg = ROLE_STYLE[user.role] ?? { label: user.role, cls: "bg-gray-50 text-gray-600 border-gray-200" };
-  const initials = user.fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+  const roleCfg   = ROLE_CFG[user.role] ?? ROLE_CFG.Customer;
+  const initials  = user.fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+  const avatarBg  = getAvatarColor(user.fullName);
+  const joinedAt  = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-2xl">
+    <div className="space-y-6">
       {/* Page header */}
       <div>
-        <h1 className="text-[22px] font-bold text-gray-900 tracking-tight">Profile</h1>
-        <p className="text-[13px] text-gray-500 mt-1">Your account details and preferences.</p>
+        <h1 className="text-[22px] font-bold tracking-tight" style={{ color: "#18181b" }}>
+          My Profile
+        </h1>
+        <p className="mt-0.5 text-[13px]" style={{ color: "#78716c" }}>
+          Manage your account information and preferences.
+        </p>
       </div>
 
-      {/* Profile card */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-        {/* Banner */}
-        <div className="h-24 bg-gradient-to-r from-gray-100 to-gray-50" />
+      {/* 2-column layout on desktop */}
+      <div className="grid gap-5" style={{ gridTemplateColumns: "300px 1fr" }}>
 
-        {/* Avatar + info */}
-        <div className="px-6 pb-6">
-          <div className="flex items-end justify-between -mt-10 mb-5">
-            <div className="w-20 h-20 rounded-2xl border-4 border-white shadow-lg bg-gray-900 flex items-center justify-center text-white text-[22px] font-bold">
-              {initials}
+        {/* ── LEFT: Identity card ── */}
+        <div className="space-y-4">
+          {/* Avatar card */}
+          <div
+            className="rounded-xl overflow-hidden"
+            style={{ background: "#fff", border: "1px solid #e7e5e4" }}
+          >
+            {/* Colored banner */}
+            <div
+              className="h-24 relative"
+              style={{ background: `linear-gradient(135deg, ${avatarBg}22 0%, ${avatarBg}11 100%)` }}
+            />
+
+            {/* Avatar + name */}
+            <div className="px-5 pb-5">
+              <div
+                className="w-16 h-16 rounded-2xl flex items-center justify-center text-[20px] font-bold -mt-8 mb-3 ring-4"
+                style={{
+                  background: avatarBg,
+                  color: "#fff",
+                  ringColor: "#fff",
+                  boxShadow: "0 0 0 4px #fff, 0 2px 8px rgba(0,0,0,0.12)",
+                }}
+              >
+                {initials}
+              </div>
+
+              <h2 className="text-[16px] font-semibold" style={{ color: "#18181b" }}>
+                {user.fullName}
+              </h2>
+              <p className="text-[12px] mt-0.5" style={{ color: "#a8a29e" }}>
+                {user.email}
+              </p>
+
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                <span
+                  className="inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                  style={{ background: roleCfg.bg, color: roleCfg.color, border: `1px solid ${roleCfg.ring}` }}
+                >
+                  {roleCfg.label}
+                </span>
+                <span
+                  className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-1 rounded-full"
+                  style={{ background: "#f0fdf4", color: "#15803d", border: "1px solid #bbf7d0" }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#16a34a", display: "inline-block" }} />
+                  Active
+                </span>
+              </div>
             </div>
-            <button
-              disabled
-              title="Edit profile (coming soon)"
-              className="flex items-center gap-1.5 text-[12px] font-medium text-gray-500 border border-gray-200 bg-white hover:bg-gray-50 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          </div>
+
+          {/* Edit button */}
+          <button
+            disabled
+            title="Profile editing coming soon"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              background: "#fff",
+              border: "1px solid #e7e5e4",
+              color: "#57534e",
+            }}
+          >
+            <PencilSimple size={14} weight="regular" />
+            Edit profile
+          </button>
+
+          {/* Security note */}
+          <div
+            className="rounded-xl p-4"
+            style={{ background: "#eff6ff", border: "1px solid #bfdbfe" }}
+          >
+            <div className="flex items-start gap-2.5">
+              <ShieldCheck size={16} weight="fill" style={{ color: "#2563eb", flexShrink: 0, marginTop: "1px" }} />
+              <div>
+                <p className="text-[12px] font-semibold" style={{ color: "#1d4ed8" }}>Secure account</p>
+                <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: "#3b82f6" }}>
+                  Password changes are managed by your administrator.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── RIGHT: Account details ── */}
+        <div className="space-y-4">
+          {/* Account info card */}
+          <div
+            className="rounded-xl overflow-hidden"
+            style={{ background: "#fff", border: "1px solid #e7e5e4" }}
+          >
+            <div
+              className="flex items-center justify-between px-6 py-4"
+              style={{ borderBottom: "1px solid #f5f5f4" }}
             >
-              <Pencil size={12} />
-              Edit profile
-            </button>
-          </div>
+              <div>
+                <h3 className="text-[14px] font-semibold" style={{ color: "#18181b" }}>
+                  Account Information
+                </h3>
+                <p className="text-[12px] mt-0.5" style={{ color: "#a8a29e" }}>
+                  Your personal details stored in the system.
+                </p>
+              </div>
+            </div>
 
-          <div>
-            <h2 className="text-[18px] font-bold text-gray-900">{user.fullName}</h2>
-            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-              <span className={`inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${roleCfg.cls}`}>
-                {roleCfg.label}
-              </span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
-                <span className="w-1.5 h-1.5 bg-green-400 rounded-full inline-block" />
-                Active
-              </span>
+            <div>
+              {[
+                {
+                  icon: <User size={15} weight="regular" />,
+                  label: "Full Name",
+                  value: user.fullName,
+                },
+                {
+                  icon: <EnvelopeSimple size={15} weight="regular" />,
+                  label: "Email Address",
+                  value: user.email,
+                },
+                {
+                  icon: <ShieldCheck size={15} weight="regular" />,
+                  label: "Role",
+                  value: roleCfg.label,
+                },
+                {
+                  icon: <CalendarBlank size={15} weight="regular" />,
+                  label: "Member since",
+                  value: joinedAt,
+                },
+                {
+                  icon: <IdentificationCard size={15} weight="regular" />,
+                  label: "Account ID",
+                  value: user.id || "-",
+                  mono: true,
+                },
+              ].map((row, i, arr) => (
+                <div
+                  key={row.label}
+                  className="flex items-center gap-4 px-6 py-4"
+                  style={{
+                    borderBottom: i < arr.length - 1 ? "1px solid #f5f5f4" : "none",
+                  }}
+                >
+                  {/* Icon */}
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{ background: "#fafaf9", border: "1px solid #e7e5e4", color: "#a8a29e" }}
+                  >
+                    {row.icon}
+                  </div>
+                  {/* Content */}
+                  <div className="flex-1 min-w-0 flex items-center justify-between gap-4">
+                    <p className="text-[12px] font-medium" style={{ color: "#a8a29e", flexShrink: 0 }}>
+                      {row.label}
+                    </p>
+                    <p
+                      className="text-[13px] font-medium truncate text-right"
+                      style={{
+                        color: "#18181b",
+                        fontFamily: row.mono ? "'Geist Mono', monospace" : "inherit",
+                        fontSize: row.mono ? "11px" : "13px",
+                      }}
+                    >
+                      {row.value}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Account info */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h3 className="text-[14px] font-semibold text-gray-900">Account Information</h3>
-          <p className="text-[12px] text-gray-500 mt-0.5">Your account details stored in the system.</p>
-        </div>
-        <div className="px-6">
-          <InfoRow icon={<User size={14} />} label="Full Name" value={user.fullName} />
-          <InfoRow icon={<Mail size={14} />} label="Email Address" value={user.email} />
-          <InfoRow icon={<Shield size={14} />} label="Role" value={roleCfg.label} />
-          <InfoRow icon={<Calendar size={14} />} label="Account ID" value={user.id || "—"} />
-        </div>
-      </div>
+          {/* Activity placeholder */}
+          <div
+            className="rounded-xl p-6"
+            style={{ background: "#fff", border: "1px solid #e7e5e4" }}
+          >
+            <h3 className="text-[14px] font-semibold mb-1" style={{ color: "#18181b" }}>
+              Account Activity
+            </h3>
+            <p className="text-[12px]" style={{ color: "#a8a29e" }}>
+              Activity tracking and session management will be available in a future update.
+            </p>
 
-      {/* Note */}
-      <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-4">
-        <Shield size={15} className="text-blue-500 mt-0.5 flex-shrink-0" />
-        <div>
-          <p className="text-[13px] font-medium text-blue-800">Secure account</p>
-          <p className="text-[12px] text-blue-600 mt-0.5">Your data is protected. Password changes and advanced settings are managed by an administrator.</p>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {[
+                { label: "Tickets created",  value: "-" },
+                { label: "Messages sent",    value: "-" },
+              ].map(s => (
+                <div
+                  key={s.label}
+                  className="rounded-lg p-3"
+                  style={{ background: "#fafaf9", border: "1px solid #f5f5f4" }}
+                >
+                  <p className="text-[20px] font-bold" style={{ color: "#18181b" }}>{s.value}</p>
+                  <p className="text-[11px] mt-0.5" style={{ color: "#a8a29e" }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

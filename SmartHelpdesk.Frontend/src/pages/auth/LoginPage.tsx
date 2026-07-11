@@ -6,115 +6,146 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { authService } from "../../services/authService";
 import { useToast } from "../../hooks/use-toast";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeSlash, CircleNotch } from "@phosphor-icons/react";
 
-// ─── Schema ───────────────────────────────────────────────────────────────────
 const loginSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email." }),
+  email: z.string().email({ message: "Enter a valid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
 });
-
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-// ─── Component ────────────────────────────────────────────────────────────────
+const inputBase =
+  "w-full h-9 px-3 rounded-md border text-[13px] bg-white outline-none transition-all duration-150 placeholder:text-[color:var(--text-disabled)] text-[color:var(--text-primary)]";
+const inputNormal = `${inputBase} border-[color:var(--border-default)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-border)]`;
+const inputError  = `${inputBase} border-[color:var(--danger)] focus:border-[color:var(--danger)] focus:ring-2 focus:ring-[color:var(--danger-border)]`;
+
 export function LoginPage() {
   const { login } = useAuthStore();
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [showPw, setShowPw]     = useState(false);
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
   });
 
   const onSubmit = async (values: LoginFormValues) => {
-    setIsLoading(true);
+    setLoading(true);
     try {
       const data = await authService.login(values);
-      const safeToken    = data.token    || data.Token;
-      const safeUserId   = data.userId   || data.UserId   || "";
-      const safeEmail    = data.email    || data.Email    || "";
-      const safeFullName = data.fullName || data.FullName || "";
-      const safeRole     = data.role     || data.Role     || "Customer";
-
-      if (!safeToken) throw new Error("No token received from server");
-
-      login(safeToken, { id: safeUserId, email: safeEmail, fullName: safeFullName, role: safeRole });
-      toast({ title: "Welcome back!", description: `Logged in as ${safeFullName}.` });
+      const token    = data.token    || data.Token;
+      const userId   = data.userId   || data.UserId   || "";
+      const email    = data.email    || data.Email    || "";
+      const fullName = data.fullName || data.FullName || "";
+      const role     = data.role     || data.Role     || "Customer";
+      if (!token) throw new Error("No token");
+      login(token, { id: userId, email, fullName, role });
+      toast({ title: "Welcome back!", description: `Signed in as ${fullName}.` });
       navigate("/");
-    } catch (error: unknown) {
-      interface ApiErrorResponse { message?: string; Message?: string; Detailed?: string; Errors?: Array<{ ErrorMessage: string }>; }
-      const err = error as { response?: { data?: ApiErrorResponse } };
-      const d = err.response?.data;
-      const errorMsg = d?.Errors?.map(e => e.ErrorMessage).join(", ") || d?.message || d?.Message || d?.Detailed || "Invalid email or password.";
-      toast({ title: "Sign in failed", description: errorMsg, variant: "destructive" });
+    } catch (err: unknown) {
+      interface Resp { message?: string; Message?: string; Errors?: { ErrorMessage: string }[] }
+      const d = (err as { response?: { data?: Resp } }).response?.data;
+      const msg = d?.Errors?.map(e => e.ErrorMessage).join(", ") || d?.message || d?.Message || "Invalid email or password.";
+      toast({ title: "Sign in failed", description: msg, variant: "destructive" });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="animate-fade-in">
+    <div>
       <div className="mb-6">
-        <h1 className="text-[22px] font-semibold text-gray-900 tracking-tight">Sign in</h1>
-        <p className="text-[13px] text-gray-500 mt-1">Welcome back. Enter your credentials to continue.</p>
+        <h1 className="text-[20px] font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+          Sign in
+        </h1>
+        <p className="mt-1 text-[13px]" style={{ color: "var(--text-tertiary)" }}>
+          Enter your credentials to access your account.
+        </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         {/* Email */}
-        <div>
-          <label htmlFor="email" className="block text-[13px] font-medium text-gray-700 mb-1.5">Email</label>
+        <div className="space-y-1.5">
+          <label className="block text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
+            Email
+          </label>
           <input
-            id="email"
             type="email"
             placeholder="you@company.com"
             autoComplete="email"
-            className={`w-full h-[38px] px-3 text-[13px] bg-white border rounded-lg outline-none transition-all
-              placeholder:text-gray-400 text-gray-900
-              ${errors.email ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20" : "border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"}`}
+            className={errors.email ? inputError : inputNormal}
             {...register("email")}
           />
-          {errors.email && <p className="text-[12px] text-red-500 mt-1.5">{errors.email.message}</p>}
+          {errors.email && (
+            <p className="text-[11px]" style={{ color: "var(--danger)" }}>{errors.email.message}</p>
+          )}
         </div>
 
         {/* Password */}
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label htmlFor="password" className="block text-[13px] font-medium text-gray-700">Password</label>
-            <a href="#" className="text-[12px] text-blue-600 hover:text-blue-700 transition-colors">Forgot password?</a>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="block text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
+              Password
+            </label>
+            <a
+              href="#"
+              className="text-[11px] font-medium transition-colors duration-150"
+              style={{ color: "var(--accent)" }}
+              onMouseOver={e => (e.currentTarget.style.color = "var(--accent-hover)")}
+              onMouseOut={e => (e.currentTarget.style.color = "var(--accent)")}
+            >
+              Forgot password?
+            </a>
           </div>
           <div className="relative">
             <input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="••••••••"
+              type={showPw ? "text" : "password"}
+              placeholder="Password"
               autoComplete="current-password"
-              className={`w-full h-[38px] px-3 pr-10 text-[13px] bg-white border rounded-lg outline-none transition-all
-                placeholder:text-gray-400 text-gray-900
-                ${errors.password ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20" : "border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"}`}
+              className={`${errors.password ? inputError : inputNormal} pr-10`}
               {...register("password")}
             />
-            <button type="button" onClick={() => setShowPassword(p => !p)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
-              {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+            <button
+              type="button"
+              onClick={() => setShowPw(p => !p)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded transition-colors duration-150"
+              style={{ color: "var(--text-disabled)" }}
+              tabIndex={-1}
+            >
+              {showPw ? <EyeSlash size={14} weight="regular" /> : <Eye size={14} weight="regular" />}
             </button>
           </div>
-          {errors.password && <p className="text-[12px] text-red-500 mt-1.5">{errors.password.message}</p>}
+          {errors.password && (
+            <p className="text-[11px]" style={{ color: "var(--danger)" }}>{errors.password.message}</p>
+          )}
         </div>
 
         {/* Submit */}
         <button
           type="submit"
-          disabled={isLoading}
-          className="w-full h-[38px] mt-2 flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white text-[13px] font-medium rounded-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+          disabled={loading}
+          className="w-full h-9 flex items-center justify-center gap-2 rounded-md text-[13px] font-medium text-white transition-all duration-150 disabled:opacity-55 disabled:cursor-not-allowed"
+          style={{
+            background: loading ? "var(--text-tertiary)" : "var(--text-primary)",
+            boxShadow: "var(--shadow-xs)",
+          }}
+          onMouseOver={e => { if (!loading) e.currentTarget.style.background = "var(--text-secondary)"; }}
+          onMouseOut={e => { if (!loading) e.currentTarget.style.background = "var(--text-primary)"; }}
+          onMouseDown={e => { e.currentTarget.style.transform = "scale(0.99)"; }}
+          onMouseUp={e => { e.currentTarget.style.transform = "scale(1)"; }}
         >
-          {isLoading ? <><Loader2 size={14} className="animate-spin" />Signing in...</> : "Sign in"}
+          {loading ? <><CircleNotch size={14} className="animate-spin" />Signing in...</> : "Sign in"}
         </button>
       </form>
 
-      <p className="text-center text-[13px] text-gray-500 mt-5">
+      <p className="mt-5 text-center text-[12px]" style={{ color: "var(--text-tertiary)" }}>
         Don't have an account?{" "}
-        <Link to="/auth/register" className="text-blue-600 font-medium hover:text-blue-700 transition-colors">
+        <Link
+          to="/auth/register"
+          className="font-medium transition-colors duration-150"
+          style={{ color: "var(--accent)" }}
+        >
           Create account
         </Link>
       </p>

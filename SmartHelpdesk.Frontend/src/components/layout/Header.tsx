@@ -1,7 +1,7 @@
-import { Bell, Search, LogOut, User, Settings, Menu, ChevronDown } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { List, Bell, MagnifyingGlass, User, Gear, SignOut, CaretDown } from "@phosphor-icons/react";
 import { useAuthStore } from "../../store/authStore";
 import { authService } from "../../services/authService";
-import { useNavigate, Link } from "react-router-dom";
 import { useUiStore } from "../../store/uiStore";
 import {
   DropdownMenu,
@@ -22,85 +22,175 @@ export function Header() {
     navigate("/auth/login");
   };
 
-  const initials = user?.fullName?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) ?? "U";
+  const initials = (user?.fullName ?? "U")
+    .split(" ")
+    .map(n => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  const firstName = user?.fullName?.split(" ")[0] ?? "User";
 
   return (
-    <header className="h-[var(--header-height,56px)] bg-white border-b border-gray-200 flex items-center gap-3 px-4 flex-shrink-0 sticky top-0 z-[var(--z-header,100)]">
-      {/* Sidebar toggle */}
+    <header
+      className="flex items-center gap-3 px-5 flex-shrink-0"
+      style={{
+        height: "56px",
+        background: "#ffffff",
+        borderBottom: "1px solid #e7e5e4",
+        position: "sticky",
+        top: 0,
+        zIndex: 30,
+      }}
+    >
+      {/* Hamburger */}
       <button
         onClick={toggleSidebar}
-        className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
         aria-label="Toggle sidebar"
+        className="flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-150 flex-shrink-0"
+        style={{ color: "#78716c" }}
+        onMouseEnter={e => { e.currentTarget.style.background = "#f5f5f4"; e.currentTarget.style.color = "#18181b"; }}
+        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#78716c"; }}
       >
-        <Menu size={17} />
+        <List size={18} weight="regular" />
       </button>
 
       {/* Search */}
-      <div className="hidden sm:flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 flex-1 max-w-xs transition-all focus-within:bg-white focus-within:border-gray-300 focus-within:ring-2 focus-within:ring-blue-500/15">
-        <Search size={14} className="text-gray-400 flex-shrink-0" />
+      <div
+        className="hidden sm:flex items-center gap-2 flex-1 max-w-[280px] h-8 px-3 rounded-lg transition-all duration-150"
+        style={{
+          background: "#f5f5f4",
+          border: "1px solid #e7e5e4",
+        }}
+        onFocusCapture={e => {
+          e.currentTarget.style.background = "#fff";
+          e.currentTarget.style.borderColor = "#2563eb";
+          e.currentTarget.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.1)";
+        }}
+        onBlurCapture={e => {
+          e.currentTarget.style.background = "#f5f5f4";
+          e.currentTarget.style.borderColor = "#e7e5e4";
+          e.currentTarget.style.boxShadow = "none";
+        }}
+      >
+        <MagnifyingGlass size={13} weight="regular" style={{ color: "#a8a29e", flexShrink: 0 }} />
         <input
           type="text"
-          placeholder="Search tickets, users..."
-          className="bg-transparent text-[13px] text-gray-900 placeholder:text-gray-400 outline-none w-full"
+          placeholder="Search..."
+          className="flex-1 bg-transparent outline-none text-[13px]"
+          style={{ color: "#18181b" }}
         />
-        <kbd className="hidden lg:inline-flex items-center text-[10px] text-gray-400 border border-gray-200 rounded px-1 py-0.5 font-mono">⌘K</kbd>
+        <kbd
+          className="hidden lg:inline-flex items-center rounded text-[10px] px-1 py-0.5 font-mono flex-shrink-0"
+          style={{ background: "#e7e5e4", color: "#a8a29e", border: "1px solid #d6d3d1" }}
+        >
+          ⌘K
+        </kbd>
       </div>
 
       <div className="flex-1" />
 
-      {/* Right actions */}
-      <div className="flex items-center gap-1">
-        {/* Notifications */}
-        <button className="relative p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all">
-          <Bell size={17} />
-          <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-blue-500 rounded-full ring-1 ring-white" />
+      {/* Right side */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {/* Notification */}
+        <button
+          aria-label="Notifications"
+          className="relative flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-150"
+          style={{ color: "#78716c" }}
+          onMouseEnter={e => { e.currentTarget.style.background = "#f5f5f4"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+        >
+          <Bell size={17} weight="regular" />
+          <span
+            className="absolute top-1 right-1 w-2 h-2 rounded-full ring-2 ring-white"
+            style={{ background: "#2563eb" }}
+          />
         </button>
 
-        {/* Divider */}
-        <div className="w-px h-4 bg-gray-200 mx-1" />
+        <div className="w-px h-4 mx-1" style={{ background: "#e7e5e4" }} />
 
         {/* User dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-lg hover:bg-gray-100 transition-all outline-none group">
-              <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-700 group-hover:bg-gray-300 transition-colors">
+            <button
+              className="flex items-center gap-2 px-2 py-1 rounded-lg transition-all duration-150 outline-none"
+              style={{ color: "#57534e" }}
+              onMouseEnter={e => { e.currentTarget.style.background = "#f5f5f4"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+            >
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+                style={{ background: "#18181b", color: "#fff" }}
+              >
                 {initials}
               </div>
-              <span className="hidden md:block text-[13px] font-medium text-gray-700 group-hover:text-gray-900 transition-colors max-w-[120px] truncate">
-                {user?.fullName?.split(" ")[0] ?? "User"}
+              <span className="hidden md:block text-[13px] font-medium" style={{ color: "#18181b" }}>
+                {firstName}
               </span>
-              <ChevronDown size={12} className="text-gray-400 group-hover:text-gray-600 transition-colors" />
+              <CaretDown size={11} weight="bold" style={{ color: "#a8a29e" }} />
             </button>
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="end" className="w-[220px] mt-2 p-1.5">
-            {/* User info header */}
-            <div className="px-2 py-2 mb-1">
-              <p className="text-[13px] font-semibold text-gray-900 truncate">{user?.fullName}</p>
-              <p className="text-[12px] text-gray-500 truncate mt-0.5">{user?.email}</p>
+          <DropdownMenuContent
+            align="end"
+            className="p-1.5 mt-1"
+            style={{
+              width: "210px",
+              background: "#fff",
+              border: "1px solid #e7e5e4",
+              borderRadius: "12px",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)",
+              zIndex: 100,
+            }}
+          >
+            {/* User info */}
+            <div className="px-2.5 pt-2 pb-2">
+              <p className="text-[13px] font-semibold truncate" style={{ color: "#18181b" }}>
+                {user?.fullName}
+              </p>
+              <p className="text-[11px] truncate mt-0.5" style={{ color: "#a8a29e" }}>
+                {user?.email}
+              </p>
             </div>
-            <DropdownMenuSeparator className="my-1" />
 
-            <DropdownMenuItem asChild className="cursor-pointer rounded-md text-[13px] gap-2 py-1.5">
-              <Link to="/profile">
-                <User size={14} className="text-gray-400" />
+            <DropdownMenuSeparator
+              className="my-1"
+              style={{ background: "#f5f5f4", height: "1px", margin: "4px 0" }}
+            />
+
+            <DropdownMenuItem asChild>
+              <Link
+                to="/profile"
+                className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] cursor-pointer transition-colors duration-100 outline-none"
+                style={{ color: "#57534e" }}
+              >
+                <User size={14} weight="regular" style={{ color: "#a8a29e" }} />
                 View profile
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild className="cursor-pointer rounded-md text-[13px] gap-2 py-1.5">
-              <Link to="/settings">
-                <Settings size={14} className="text-gray-400" />
+
+            <DropdownMenuItem asChild>
+              <Link
+                to="/settings"
+                className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] cursor-pointer transition-colors duration-100 outline-none"
+                style={{ color: "#57534e" }}
+              >
+                <Gear size={14} weight="regular" style={{ color: "#a8a29e" }} />
                 Settings
               </Link>
             </DropdownMenuItem>
 
-            <DropdownMenuSeparator className="my-1" />
+            <DropdownMenuSeparator
+              className="my-1"
+              style={{ background: "#f5f5f4", height: "1px", margin: "4px 0" }}
+            />
 
             <DropdownMenuItem
               onClick={handleLogout}
-              className="cursor-pointer rounded-md text-[13px] gap-2 py-1.5 text-red-600 focus:text-red-600 focus:bg-red-50"
+              className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] cursor-pointer transition-colors duration-100 outline-none"
+              style={{ color: "#dc2626" }}
             >
-              <LogOut size={14} />
+              <SignOut size={14} weight="regular" />
               Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>
