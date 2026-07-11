@@ -6,6 +6,7 @@ import { RegisterPage } from "../pages/auth/RegisterPage";
 import { DashboardPage } from "../pages/dashboard/DashboardPage";
 import { UsersPage } from "../pages/dashboard/UsersPage";
 import { ProfilePage } from "../pages/dashboard/ProfilePage";
+import { TicketsPage } from "../pages/dashboard/TicketsPage";
 import { AuthGuard } from "../components/guard/AuthGuard";
 import { GuestGuard } from "../components/guard/GuestGuard";
 import { RoleGuard } from "../components/guard/RoleGuard";
@@ -65,23 +66,6 @@ function NotFoundPage() {
   );
 }
 
-// ─── Tickets placeholder ───────────────────────────────────────────────────────
-function TicketsPlaceholder() {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 gap-3">
-      <div
-        className="w-12 h-12 rounded-xl flex items-center justify-center"
-        style={{ background: "var(--border-subtle)", border: "1px solid var(--border-default)" }}
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-disabled)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-        </svg>
-      </div>
-      <p className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>Tickets page</p>
-      <p className="text-[12px]" style={{ color: "var(--text-disabled)" }}>Coming soon - Sprint 2</p>
-    </div>
-  );
-}
 
 // ─── Router ────────────────────────────────────────────────────────────────────
 export const router = createBrowserRouter([
@@ -106,7 +90,7 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true,       element: <DashboardPage /> },
-      { path: "tickets",   element: <TicketsPlaceholder /> },
+      { path: "tickets",   element: <TicketsPage /> },
       { path: "profile",   element: <ProfilePage /> },
       {
         path: "users",

@@ -66,7 +66,6 @@ export function ProfilePage() {
                 style={{
                   background: avatarBg,
                   color: "#fff",
-                  ringColor: "#fff",
                   boxShadow: "0 0 0 4px #fff, 0 2px 8px rgba(0,0,0,0.12)",
                 }}
               >
