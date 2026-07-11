@@ -43,8 +43,11 @@ namespace SmartHelpdesk.Infrastructure
             services.AddTransient<IFileStorageService, LocalFileStorageService>();
 
             // Register AI Service
-            services.AddHttpClient<IAiService, GeminiAiService>()
-                .AddStandardResilienceHandler();
+            services.AddHttpClient<IAiService, GeminiAiService>();
+
+            // Register Background Task Queue
+            services.AddSingleton<IBackgroundTaskQueue>(ctx => new BackgroundTaskQueue(100));
+            services.AddHostedService<AiProcessingBackgroundService>();
 
             return services;
         }

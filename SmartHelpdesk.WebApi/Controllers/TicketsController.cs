@@ -13,6 +13,7 @@ using SmartHelpdesk.Application.Features.Tickets.Commands.DeleteTicket;
 using SmartHelpdesk.Application.Features.Tickets.Queries.AnalyzeTicketSentiment;
 using SmartHelpdesk.Application.Features.Tickets.Queries.SuggestTicketReply;
 using SmartHelpdesk.Application.Features.Tickets.Commands.UpdateTicket;
+using SmartHelpdesk.Application.Features.Tickets.DTOs;
 
 namespace SmartHelpdesk.WebApi.Controllers
 {
@@ -29,14 +30,17 @@ namespace SmartHelpdesk.WebApi.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateTicket([FromBody] CreateTicketCommand command)
+        public async Task<IActionResult> CreateTicket([FromBody] CreateTicketRequestDto request)
         {
-            // Tự động lấy UserId từ JWT Token
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (Guid.TryParse(userIdClaim, out Guid userId))
-            {
-                command = command with { CreatedById = userId };
-            }
+            Guid.TryParse(userIdClaim, out Guid userId);
+
+            var command = new CreateTicketCommand(
+                request.Title,
+                request.Description,
+                request.CategoryId,
+                userId
+            );
 
             var ticketId = await _mediator.Send(command);
             return CreatedAtAction(nameof(GetTicketById), new { id = ticketId }, new { Id = ticketId });

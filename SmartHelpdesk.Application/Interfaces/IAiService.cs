@@ -7,5 +7,6 @@ namespace SmartHelpdesk.Application.Interfaces
     {
         Task<string> AnalyzeSentimentAsync(string content, CancellationToken cancellationToken = default);
         Task<string> SuggestReplyAsync(string content, CancellationToken cancellationToken = default);
+        Task<string> DeterminePriorityAsync(string title, string description, CancellationToken cancellationToken = default);
     }
 }
