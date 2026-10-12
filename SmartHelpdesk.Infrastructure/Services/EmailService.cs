@@ -1,53 +1,25 @@
-using SmartHelpdesk.Application.Interfaces;
-using System;
-using System.Threading.Tasks;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Options;
 using MimeKit;
-using SmartHelpdesk.Domain.Interfaces;
+using SmartHelpdesk.Application.Interfaces;
 using SmartHelpdesk.Infrastructure.Configurations;
-
-namespace SmartHelpdesk.Infrastructure.Services
+namespace SmartHelpdesk.Infrastructure.Services;
+public class EmailService(IOptions<EmailSettings> options) : IEmailService
 {
-    public class EmailService : IEmailService
+    public async Task SendEmailAsync(string to, string subject, string body, CancellationToken cancellationToken = default)
     {
-        private readonly EmailSettings _settings;
-
-        public EmailService(IOptions<EmailSettings> options)
-        {
-            _settings = options.Value;
-        }
-
-        public async Task SendEmailAsync(string to, string subject, string body)
-        {
-            var email = new MimeMessage();
-            email.From.Add(new MailboxAddress(_settings.FromName, _settings.FromAddress));
-            email.To.Add(MailboxAddress.Parse(to));
-            email.Subject = subject;
-
-            var builder = new BodyBuilder { HtmlBody = body };
-            email.Body = builder.ToMessageBody();
-
-            using var smtp = new SmtpClient();
-            try
-            {
-                // Bỏ qua chứng chỉ SSL giả lập khi dùng Ethereal
-                smtp.ServerCertificateValidationCallback = (s, c, h, e) => true;
-
-                await smtp.ConnectAsync(_settings.Host, _settings.Port, SecureSocketOptions.StartTls);
-                await smtp.AuthenticateAsync(_settings.Username, _settings.Password);
-                await smtp.SendAsync(email);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error sending email: {ex.Message}");
-            }
-            finally
-            {
-                await smtp.DisconnectAsync(true);
-            }
-        }
+        var settings = options.Value;
+        var email = new MimeMessage();
+        email.From.Add(new MailboxAddress(settings.FromName, settings.FromAddress));
+        email.To.Add(MailboxAddress.Parse(to)); email.Subject = subject;
+        email.Body = new BodyBuilder { HtmlBody = body }.ToMessageBody();
+        using var smtp = new SmtpClient { Timeout = 20000 };
+        // Keep normal certificate validation. Failures are retried by the durable email lane.
+        await smtp.ConnectAsync(settings.Host, settings.Port, SecureSocketOptions.StartTls, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(settings.Username))
+            await smtp.AuthenticateAsync(settings.Username, settings.Password, cancellationToken);
+        await smtp.SendAsync(email, cancellationToken);
+        await smtp.DisconnectAsync(true, cancellationToken);
     }
 }
-

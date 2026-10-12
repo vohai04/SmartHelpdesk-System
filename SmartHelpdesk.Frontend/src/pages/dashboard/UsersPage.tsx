@@ -1,3 +1,4 @@
+import { isAxiosError } from "axios";
 import { useEffect, useState, useCallback } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
@@ -18,7 +19,7 @@ import { ConfirmModal } from "../../components/ui/ConfirmModal";
 // ─── Badges ───────────────────────────────────────────────────────────────────
 const ROLE_STYLE: Record<string, { bg: string; color: string; border: string }> = {
   Admin:        { bg: "var(--accent-subtle)",   color: "var(--accent)",   border: "var(--accent-border)" },
-  SupportAgent: { bg: "#f0f9ff",                color: "#0369a1",         border: "#bae6fd" },
+  Agent: { bg: "var(--accent-subtle)",                color: "var(--accent)",         border: "var(--accent-border)" },
   Customer:     { bg: "var(--border-subtle)",   color: "var(--text-tertiary)", border: "var(--border-default)" },
 };
 
@@ -133,8 +134,8 @@ export function UsersPage() {
       toast({ title: "User deactivated", description: `${deleteTarget.fullName} has been soft-deleted.` });
       setDeleteTarget(null);
       fetchUsers();
-    } catch {
-      toast({ title: "Error", description: "Could not delete user.", variant: "destructive" });
+    } catch (e) {
+      toast({ title: "Error", description: isAxiosError(e) ? e.response?.data?.Message || "Could not deactivate user." : "Could not deactivate user.", variant: "destructive" });
     } finally {
       setIsDeleting(false);
     }
@@ -163,8 +164,8 @@ export function UsersPage() {
       toast({ title: "Role updated", description: `${roleTarget.fullName}'s role has been updated.` });
       setRoleTarget(null);
       fetchUsers();
-    } catch (e: any) {
-      toast({ title: "Error", description: e.response?.data || "Could not update user role.", variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Error", description: (isAxiosError(e) ? e.response?.data?.Message || "Could not update user role." : "Could not update user role."), variant: "destructive" });
     } finally {
       setIsChangingRole(false);
     }
@@ -182,19 +183,19 @@ export function UsersPage() {
   const deletedCount = users.filter(u => u.isDeleted).length;
 
   return (
-    <div className="space-y-6">
+    <div className="people-page workspace-page space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-[20px] font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          Users
+          People
         </h1>
         <p className="mt-0.5 text-[13px]" style={{ color: "var(--text-tertiary)" }}>
-          Manage all user accounts in the system.
+          Manage the people in your support workspace.
         </p>
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
           { label: "Total",   value: loading ? "-" : totalCount, color: "var(--text-primary)" },
           { label: "Active",  value: loading ? "-" : activeCount, color: "var(--success)" },
@@ -328,7 +329,7 @@ export function UsersPage() {
         {/* Table */}
         {(loading || (!error && users.length > 0)) && (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+            <table className="responsive-records w-full border-collapse">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border-default)", background: "var(--surface-bg)" }}>
                   {["User", "Role", "Status", "Created", "Actions"].map(h => (
@@ -450,23 +451,23 @@ export function UsersPage() {
         <div className="fixed inset-0 z-[400] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => !isChangingRole && setRoleTarget(null)} />
           
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm relative z-10 overflow-hidden flex flex-col animate-fade-up">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <div className="flex items-center gap-2 text-slate-800">
-                <Shield size={20} className="text-indigo-500" />
+          <div className="bg-[var(--surface-default)] rounded-2xl shadow-xl w-full max-w-sm relative z-10 overflow-hidden flex flex-col animate-fade-up">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-default)]">
+              <div className="flex items-center gap-2 text-[var(--text-primary)]">
+                <Shield size={20} className="text-[var(--accent)] " />
                 <h2 className="text-[16px] font-semibold">Change Role</h2>
               </div>
               <button
                 onClick={() => setRoleTarget(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                className="p-1.5 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-bg)] transition-colors"
               >
                 <X size={16} weight="bold" />
               </button>
             </div>
 
             <div className="p-6 space-y-4">
-              <p className="text-[13px] text-slate-600">
-                Select a new role for <span className="font-semibold text-slate-800">{roleTarget.fullName}</span>:
+              <p className="text-[13px] text-[var(--text-secondary)]">
+                Select a new role for <span className="font-semibold text-[var(--text-primary)]">{roleTarget.fullName}</span>:
               </p>
               
               <div className="space-y-2">
@@ -475,7 +476,7 @@ export function UsersPage() {
                   { value: 1, label: "Agent",    desc: "Can view and respond to assigned tickets." },
                   { value: 2, label: "Admin",    desc: "Full access to system, users, and all tickets." }
                 ].map(r => (
-                  <label key={r.value} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${selectedRole === r.value ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                  <label key={r.value} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${selectedRole === r.value ? 'border-indigo-500 bg-[var(--accent-subtle)]/50' : 'border-[var(--border-default)] hover:bg-[var(--surface-bg)]'}`}>
                     <div className="flex items-center h-5">
                       <input
                         type="radio"
@@ -483,31 +484,31 @@ export function UsersPage() {
                         value={r.value}
                         checked={selectedRole === r.value}
                         onChange={() => setSelectedRole(r.value)}
-                        className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-600"
+                        className="w-4 h-4 text-[var(--accent)] border-[var(--border-default)] focus:ring-indigo-600"
                       />
                     </div>
                     <div>
-                      <p className={`text-[13px] font-semibold ${selectedRole === r.value ? 'text-indigo-900' : 'text-slate-800'}`}>{r.label}</p>
-                      <p className={`text-[11px] ${selectedRole === r.value ? 'text-indigo-600/80' : 'text-slate-500'}`}>{r.desc}</p>
+                      <p className={`text-[13px] font-semibold ${selectedRole === r.value ? 'text-indigo-900' : 'text-[var(--text-primary)]'}`}>{r.label}</p>
+                      <p className={`text-[11px] ${selectedRole === r.value ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}`}>{r.desc}</p>
                     </div>
                   </label>
                 ))}
               </div>
             </div>
 
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+            <div className="px-6 py-4 bg-[var(--surface-bg)] border-t border-[var(--border-default)] flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setRoleTarget(null)}
                 disabled={isChangingRole}
-                className="px-4 py-2 rounded-lg text-[13px] font-medium text-slate-600 hover:bg-slate-200 transition-colors"
+                className="px-4 py-2 rounded-lg text-[13px] font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleChangeRole}
                 disabled={isChangingRole}
-                className="px-4 py-2 rounded-lg text-[13px] font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-70 flex items-center gap-2"
+                className="px-4 py-2 rounded-lg text-[13px] font-medium text-[var(--text-on-accent)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-colors shadow-sm disabled:opacity-70 flex items-center gap-2"
               >
                 {isChangingRole && <CircleNotch size={14} className="animate-spin" />}
                 Save Changes

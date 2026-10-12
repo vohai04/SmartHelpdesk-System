@@ -43,7 +43,7 @@ namespace SmartHelpdesk.WebApi.Controllers
         {
             var agents = await System.Threading.Tasks.Task.Run(() =>
                 _unitOfWork.Repository<User>().GetQueryable()
-                    .Where(u => u.Role == UserRole.Agent && !u.IsDeleted)
+                    .Where(u => u.Role == UserRole.Agent && u.IsActive && !u.IsDeleted)
                     .Select(u => new { u.Id, u.FullName, u.Email })
                     .ToList()
             );
@@ -73,7 +73,7 @@ namespace SmartHelpdesk.WebApi.Controllers
             );
 
             var ticketId = await _mediator.Send(command);
-            return CreatedAtAction(nameof(GetTicketById), new { id = ticketId }, new { Id = ticketId });
+            return CreatedAtAction(nameof(GetTicketById), new { id = ticketId }, new { Id = ticketId, Priority = (string?)null, TriageStatus = "Pending" });
         }
 
         [HttpGet]
@@ -117,7 +117,17 @@ namespace SmartHelpdesk.WebApi.Controllers
             command.CurrentUserRole = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
 
             var result = await _mediator.Send(command);
-            return NoContent();
+            return Ok(await _mediator.Send(new GetTicketByIdQuery(id, command.CurrentUserId, command.CurrentUserRole)));
+        }
+
+        [HttpPost("{id}/actions")]
+        public async Task<IActionResult> TicketAction(Guid id, [FromBody] UpdateTicketCommand command)
+        {
+            command.TicketId = id;
+            command.CurrentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            command.CurrentUserRole = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+            await _mediator.Send(command);
+            return Ok(await _mediator.Send(new GetTicketByIdQuery(id, command.CurrentUserId, command.CurrentUserRole)));
         }
 
         [HttpPost("{ticketId}/messages")]
@@ -154,7 +164,7 @@ namespace SmartHelpdesk.WebApi.Controllers
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             Guid.TryParse(userIdClaim, out Guid userId);
 
-            var query = new GetMessagesByTicketIdQuery { TicketId = ticketId, UserRole = role, CurrentUserId = userId, PageNumber = pageNumber, PageSize = pageSize };
+            var query = new GetMessagesByTicketIdQuery { TicketId = ticketId, UserRole = role ?? string.Empty, CurrentUserId = userId, PageNumber = pageNumber, PageSize = pageSize };
             var result = await _mediator.Send(query);
             return Ok(result);
         }
@@ -163,7 +173,7 @@ namespace SmartHelpdesk.WebApi.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteTicket(Guid id)
         {
-            var result = await _mediator.Send(new DeleteTicketCommand(id));
+            var result = await _mediator.Send(new DeleteTicketCommand(id, Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!)));
             return NoContent();
         }
 

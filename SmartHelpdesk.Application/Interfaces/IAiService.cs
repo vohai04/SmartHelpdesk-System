@@ -5,8 +5,8 @@ namespace SmartHelpdesk.Application.Interfaces
 {
     public class AiTriageResult
     {
-        public string Priority { get; set; } = "Medium";
-        public string Sentiment { get; set; } = "Bình thường";
+        public string Priority { get; set; } = string.Empty;
+        public string Sentiment { get; set; } = string.Empty;
         public string Summary { get; set; } = string.Empty;
     }
 

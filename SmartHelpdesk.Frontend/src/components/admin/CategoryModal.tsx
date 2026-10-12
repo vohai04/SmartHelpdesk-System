@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X, Tag, Robot } from "@phosphor-icons/react";
 import type { CategoryDto } from "../../services/categoryService";
@@ -11,18 +11,10 @@ interface CategoryModalProps {
 }
 
 export function CategoryModal({ isOpen, initialData, onClose, onSubmit }: CategoryModalProps) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [aiRoutingKeywords, setAiRoutingKeywords] = useState("");
+  const [name, setName] = useState(initialData?.name ?? "");
+  const [description, setDescription] = useState(initialData?.description ?? "");
+  const [aiRoutingKeywords, setAiRoutingKeywords] = useState(initialData?.aiRoutingKeywords ?? "");
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      setName(initialData?.name ?? "");
-      setDescription(initialData?.description ?? "");
-      setAiRoutingKeywords(initialData?.aiRoutingKeywords ?? "");
-    }
-  }, [isOpen, initialData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,7 +148,7 @@ export function CategoryModal({ isOpen, initialData, onClose, onSubmit }: Catego
                   type="submit"
                   disabled={loading || !name.trim()}
                   className="px-4 py-2 rounded-lg text-[13px] font-semibold transition-all disabled:opacity-50 flex items-center gap-2"
-                  style={{ background: "var(--accent)", color: "white", boxShadow: "var(--shadow-sm)" }}
+                  style={{ background: "var(--accent)", color: "var(--text-on-accent)", boxShadow: "var(--shadow-sm)" }}
                   onMouseOver={e => e.currentTarget.style.filter = "brightness(1.1)"}
                   onMouseOut={e => e.currentTarget.style.filter = "none"}
                 >

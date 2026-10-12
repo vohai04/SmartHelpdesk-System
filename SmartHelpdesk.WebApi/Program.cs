@@ -17,6 +17,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", Serilog.Events.LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.AspNetCore.Hosting.Diagnostics", Serilog.Events.LogEventLevel.Warning)
     .Enrich.FromLogContext()
     .WriteTo.Console()
     .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day)
@@ -73,6 +75,14 @@ builder.Services.AddAuthentication(options =>
     
     options.Events = new JwtBearerEvents
     {
+        OnTokenValidated = async context =>
+        {
+            var id = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var db = context.HttpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
+            var user = Guid.TryParse(id, out var userId) ? await db.Users.AsNoTracking().SingleOrDefaultAsync(u => u.Id == userId) : null;
+            if (user is null || !user.IsActive || user.Role.ToString() != context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value)
+                context.Fail("Account access changed. Sign in again.");
+        },
         OnMessageReceived = context =>
         {
             var accessToken = context.Request.Query["access_token"];
@@ -135,6 +145,10 @@ if (app.Environment.IsDevelopment())
 // Add Global Exception Handling Middleware
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+app.Use(async (context, next) => {
+    if (context.Request.Path.StartsWithSegments("/uploads")) { context.Response.StatusCode = 404; return; }
+    await next();
+});
 app.UseStaticFiles();
 app.UseHttpsRedirection();
 

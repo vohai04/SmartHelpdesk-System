@@ -28,16 +28,16 @@ namespace SmartHelpdesk.Application.Features.Analytics.Queries.GetDashboardMetri
             var metrics = new DashboardMetricsDto
             {
                 TotalTickets = tickets.Count,
-                OpenTickets = tickets.Count(t => t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress),
-                ResolvedTickets = tickets.Count(t => t.Status == TicketStatus.Resolved || t.Status == TicketStatus.Closed),
+                OpenTickets = tickets.Count(t => t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress || t.Status == TicketStatus.WaitingForCustomer),
+                ResolvedTickets = tickets.Count(t => t.Status == TicketStatus.Resolved || (t.Status == TicketStatus.Closed && (t.ClosureReason == null || t.Resolution != null))),
                 UrgentTickets = tickets.Count(t => t.Priority == TicketPriority.Urgent)
             };
 
             // Average Resolution Time for Resolved/Closed tickets
-            var resolvedTicketsList = tickets.Where(t => (t.Status == TicketStatus.Resolved || t.Status == TicketStatus.Closed) && t.UpdatedAt.HasValue).ToList();
+            var resolvedTicketsList = tickets.Where(t => (t.Status == TicketStatus.Resolved || (t.Status == TicketStatus.Closed && (t.ClosureReason == null || t.Resolution != null))) && t.UpdatedAt.HasValue).ToList();
             if (resolvedTicketsList.Any())
             {
-                var totalHours = resolvedTicketsList.Sum(t => (t.UpdatedAt!.Value - t.CreatedAt).TotalHours);
+                var totalHours = resolvedTicketsList.Sum(t => ((t.ResolvedAt ?? t.UpdatedAt!.Value) - t.CreatedAt).TotalHours);
                 metrics.AverageResolutionTimeHours = Math.Round(totalHours / resolvedTicketsList.Count, 1);
             }
 
@@ -53,7 +53,7 @@ namespace SmartHelpdesk.Application.Features.Analytics.Queries.GetDashboardMetri
                                              .ToDictionary(g => g.Key, g => g.Count());
 
             // Group by Priority
-            metrics.TicketsByPriority = tickets.GroupBy(t => t.Priority.ToString())
+            metrics.TicketsByPriority = tickets.GroupBy(t => t.Priority.HasValue ? t.Priority.Value.ToString() : "Unclassified")
                                                .ToDictionary(g => g.Key, g => g.Count());
 
             return metrics;

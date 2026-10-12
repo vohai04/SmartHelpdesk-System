@@ -8,10 +8,12 @@ namespace SmartHelpdesk.Application.Features.Tickets.Commands.CreateTicket
         {
             RuleFor(v => v.Title)
                 .NotEmpty().WithMessage("Tiêu đề không được để trống.")
+                .MinimumLength(3)
                 .MaximumLength(200).WithMessage("Tiêu đề không được vượt quá 200 ký tự.");
 
             RuleFor(v => v.Description)
-                .NotEmpty().WithMessage("Nội dung không được để trống.");
+                .NotEmpty().WithMessage("Nội dung không được để trống.")
+                .MinimumLength(10).MaximumLength(5000);
 
             RuleFor(v => v.CategoryId)
                 .NotEmpty().WithMessage("Phải chọn danh mục cho Ticket.");

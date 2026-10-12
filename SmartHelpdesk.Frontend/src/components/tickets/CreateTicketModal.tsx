@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useState, useEffect, useRef } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -9,8 +9,8 @@ import { ticketService } from "../../services/ticketService";
 import { categoryService, type CategoryDto } from "../../services/categoryService";
 
 const createTicketSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters").max(100, "Title is too long"),
-  description: z.string().min(10, "Description must be at least 10 characters").max(1000, "Description is too long"),
+  title: z.string().min(3, "Title must be at least 3 characters").max(200, "Title is too long"),
+  description: z.string().min(10, "Description must be at least 10 characters").max(5000, "Description is too long"),
   categoryId: z.string().min(1, "Please select a category"),
   requesterId: z.string().optional(),
 });
@@ -26,7 +26,12 @@ interface CreateTicketModalProps {
 import { useAuthStore } from "../../store/authStore";
 import { userService, type UserManagementDto } from "../../services/userService";
 
-export function CreateTicketModal({ open, onOpenChange, onSuccess }: CreateTicketModalProps) {
+export function CreateTicketModal(props: CreateTicketModalProps) {
+  return props.open ? <CreateTicketForm {...props}/> : null;
+}
+
+function CreateTicketForm({ open, onOpenChange, onSuccess }: CreateTicketModalProps) {
+  const returnFocus = useRef(document.activeElement as HTMLElement | null);
   const { toast } = useToast();
   const { user } = useAuthStore();
   const isAdminOrAgent = user?.role === "Admin" || user?.role === "Agent";
@@ -34,13 +39,12 @@ export function CreateTicketModal({ open, onOpenChange, onSuccess }: CreateTicke
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [loadingCats, setLoadingCats] = useState(true);
   const [customers, setCustomers] = useState<UserManagementDto[]>([]);
-  const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [loadingCustomers, setLoadingCustomers] = useState(isAdminOrAgent);
 
   const {
     register,
     handleSubmit,
-    reset,
-    watch,
+    control,
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<CreateTicketFormValues>({
@@ -50,35 +54,26 @@ export function CreateTicketModal({ open, onOpenChange, onSuccess }: CreateTicke
     },
   });
 
+  const requesterId = useWatch({control,name:"requesterId"});
   const [searchCustomer, setSearchCustomer] = useState("");
   const [isCustomerDropdownOpen, setCustomerDropdownOpen] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      setLoadingCats(true);
-      categoryService.getCategories()
-        .then(setCategories)
-        .catch(() => toast({ title: "Error", description: "Failed to load categories", variant: "destructive" }))
-        .finally(() => setLoadingCats(false));
-
-      if (isAdminOrAgent) {
-        setLoadingCustomers(true);
-        userService.getUsers({ role: "Customer", pageSize: 100 })
-          .then(res => setCustomers(res.items))
-          .catch(() => console.error("Failed to load customers"))
-          .finally(() => setLoadingCustomers(false));
-      }
-    } else {
-      reset();
-      setSearchCustomer("");
-      setCustomerDropdownOpen(false);
-    }
-  }, [open, reset, toast, isAdminOrAgent]);
+    let active=true;
+    categoryService.getCategories().then(data=>{if(active)setCategories(data);})
+      .catch(()=>{if(active)toast({title:"Error",description:"Failed to load categories",variant:"destructive"});})
+      .finally(()=>{if(active)setLoadingCats(false);});
+    if(isAdminOrAgent) userService.getUsers({role:"Customer",pageSize:100})
+      .then(result=>{if(active)setCustomers(result.items);})
+      .catch(()=>{if(active)toast({title:"Error",description:"Failed to load requesters",variant:"destructive"});})
+      .finally(()=>{if(active)setLoadingCustomers(false);});
+    return()=>{active=false;};
+  },[toast,isAdminOrAgent]);
 
   const onSubmit = async (data: CreateTicketFormValues) => {
     try {
       await ticketService.createTicket(data);
-      toast({ title: "Ticket created", description: "Your ticket has been submitted successfully. Priority was auto-assigned by AI." });
+      toast({ title: "Ticket created", description: "Your ticket has been submitted successfully. Priority is being classified. You can view the result on your ticket." });
       onSuccess();
       onOpenChange(false);
     } catch {
@@ -94,7 +89,8 @@ export function CreateTicketModal({ open, onOpenChange, onSuccess }: CreateTicke
           style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)", zIndex: "var(--z-modal,300)" }}
         />
         <Dialog.Content
-          className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[500px] outline-none"
+          onCloseAutoFocus={event=>{event.preventDefault();returnFocus.current?.focus();}}
+          className="workspace-dialog fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[500px] outline-none"
           style={{ zIndex: "var(--z-modal,300)" }}
         >
           <div
@@ -124,16 +120,16 @@ export function CreateTicketModal({ open, onOpenChange, onSuccess }: CreateTicke
 
             {/* Form */}
             <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
-              
+
               {/* Requester (Only for Admin/Agent) */}
               {isAdminOrAgent && (
                 <div className="relative">
                   <label className="block text-[12px] font-semibold mb-1.5 flex items-center gap-2" style={{ color: "var(--text-secondary)" }}>
                     Requester (On behalf of) <span className="text-[10px] font-normal px-1.5 py-0.5 rounded" style={{ background: "var(--surface-bg)", color: "var(--text-disabled)" }}>Optional</span>
                   </label>
-                  
+
                   {/* Combobox Button */}
-                  <div 
+                  <div
                     onClick={() => setCustomerDropdownOpen(!isCustomerDropdownOpen)}
                     className="w-full h-9 px-3 rounded-lg text-[13px] transition-all duration-150 flex items-center justify-between cursor-pointer"
                     style={{
@@ -145,9 +141,9 @@ export function CreateTicketModal({ open, onOpenChange, onSuccess }: CreateTicke
                     }}
                   >
                     <span className="truncate">
-                      {!watch("requesterId") 
-                        ? "Myself" 
-                        : customers.find(c => c.id === watch("requesterId"))?.fullName || "Myself"
+                      {!requesterId
+                        ? "Myself"
+                        : customers.find(c => c.id === requesterId)?.fullName || "Myself"
                       }
                     </span>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-disabled)" }}>
@@ -157,19 +153,19 @@ export function CreateTicketModal({ open, onOpenChange, onSuccess }: CreateTicke
 
                   {/* Dropdown Options */}
                   {isCustomerDropdownOpen && (
-                    <div 
+                    <div
                       className="absolute left-0 right-0 mt-1 rounded-xl overflow-hidden z-50 flex flex-col"
-                      style={{ 
-                        background: "var(--surface-default)", 
-                        border: "1px solid var(--border-default)", 
+                      style={{
+                        background: "var(--surface-default)",
+                        border: "1px solid var(--border-default)",
                         boxShadow: "var(--shadow-lg)",
-                        maxHeight: "200px" 
+                        maxHeight: "200px"
                       }}
                     >
                       <div className="p-2 border-b" style={{ borderColor: "var(--border-subtle)", background: "var(--surface-bg)" }}>
-                        <input 
-                          type="text" 
-                          placeholder="Search customer..." 
+                        <input
+                          type="text"
+                          placeholder="Search customer..."
                           value={searchCustomer}
                           onChange={e => setSearchCustomer(e.target.value)}
                           className="w-full h-8 px-2.5 rounded-md text-[12px] outline-none"
@@ -178,53 +174,53 @@ export function CreateTicketModal({ open, onOpenChange, onSuccess }: CreateTicke
                         />
                       </div>
                       <div className="overflow-y-auto flex-1 p-1">
-                        <div 
+                        <div
                           className="px-3 py-2 text-[13px] rounded-lg cursor-pointer transition-colors"
-                          style={{ 
-                            background: !watch("requesterId") ? "var(--accent-subtle)" : "transparent",
-                            color: !watch("requesterId") ? "var(--accent)" : "var(--text-secondary)"
+                          style={{
+                            background: !requesterId ? "var(--accent-subtle)" : "transparent",
+                            color: !requesterId ? "var(--accent)" : "var(--text-secondary)"
                           }}
-                          onMouseOver={e => !watch("requesterId") ? null : e.currentTarget.style.background = "var(--surface-bg)"}
-                          onMouseOut={e => e.currentTarget.style.background = !watch("requesterId") ? "var(--accent-subtle)" : "transparent"}
+                          onMouseOver={e => !requesterId ? null : e.currentTarget.style.background = "var(--surface-bg)"}
+                          onMouseOut={e => e.currentTarget.style.background = !requesterId ? "var(--accent-subtle)" : "transparent"}
                           onClick={() => { setValue("requesterId", ""); setCustomerDropdownOpen(false); setSearchCustomer(""); }}
                         >
                           Myself
                         </div>
-                        
+
                         {loadingCustomers ? (
                           <div className="px-3 py-3 text-[12px] text-center" style={{ color: "var(--text-disabled)" }}>Loading...</div>
                         ) : (
                           customers
                             .filter(c => c.fullName.toLowerCase().includes(searchCustomer.toLowerCase()) || c.email.toLowerCase().includes(searchCustomer.toLowerCase()))
                             .map(c => (
-                              <div 
+                              <div
                                 key={c.id}
                                 className="px-3 py-2 text-[13px] rounded-lg cursor-pointer transition-colors flex flex-col"
-                                style={{ 
-                                  background: watch("requesterId") === c.id ? "var(--accent-subtle)" : "transparent",
-                                  color: watch("requesterId") === c.id ? "var(--accent)" : "var(--text-secondary)"
+                                style={{
+                                  background: requesterId === c.id ? "var(--accent-subtle)" : "transparent",
+                                  color: requesterId === c.id ? "var(--accent)" : "var(--text-secondary)"
                                 }}
-                                onMouseOver={e => watch("requesterId") === c.id ? null : e.currentTarget.style.background = "var(--surface-bg)"}
-                                onMouseOut={e => e.currentTarget.style.background = watch("requesterId") === c.id ? "var(--accent-subtle)" : "transparent"}
+                                onMouseOver={e => requesterId === c.id ? null : e.currentTarget.style.background = "var(--surface-bg)"}
+                                onMouseOut={e => e.currentTarget.style.background = requesterId === c.id ? "var(--accent-subtle)" : "transparent"}
                                 onClick={() => { setValue("requesterId", c.id); setCustomerDropdownOpen(false); setSearchCustomer(""); }}
                               >
-                                <span className="font-medium" style={{ color: watch("requesterId") === c.id ? "var(--accent)" : "var(--text-primary)" }}>{c.fullName}</span>
-                                <span className="text-[11px]" style={{ color: watch("requesterId") === c.id ? "var(--accent)" : "var(--text-tertiary)" }}>{c.email}</span>
+                                <span className="font-medium" style={{ color: requesterId === c.id ? "var(--accent)" : "var(--text-primary)" }}>{c.fullName}</span>
+                                <span className="text-[11px]" style={{ color: requesterId === c.id ? "var(--accent)" : "var(--text-tertiary)" }}>{c.email}</span>
                               </div>
                           ))
                         )}
-                        
+
                         {!loadingCustomers && customers.filter(c => c.fullName.toLowerCase().includes(searchCustomer.toLowerCase()) || c.email.toLowerCase().includes(searchCustomer.toLowerCase())).length === 0 && (
                            <div className="px-3 py-3 text-[12px] text-center" style={{ color: "var(--text-disabled)" }}>No customers found</div>
                         )}
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Backdrop to close dropdown when clicking outside */}
                   {isCustomerDropdownOpen && (
-                    <div 
-                      className="fixed inset-0 z-40" 
+                    <div
+                      className="fixed inset-0 z-40"
                       onClick={() => setCustomerDropdownOpen(false)}
                     />
                   )}
@@ -339,7 +335,7 @@ export function CreateTicketModal({ open, onOpenChange, onSuccess }: CreateTicke
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="h-9 px-5 rounded-lg text-[12px] font-semibold text-white flex items-center gap-2 transition-all duration-150 disabled:opacity-60"
+                  className="h-9 px-5 rounded-lg text-[12px] font-semibold text-[var(--text-on-accent)] flex items-center gap-2 transition-all duration-150 disabled:opacity-60"
                   style={{ background: "var(--accent)", boxShadow: "var(--shadow-sm)" }}
                   onMouseDown={e => { e.currentTarget.style.transform = "scale(0.97)"; }}
                   onMouseUp={e => { e.currentTarget.style.transform = "scale(1)"; }}

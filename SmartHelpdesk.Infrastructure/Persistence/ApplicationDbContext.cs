@@ -14,6 +14,8 @@ namespace SmartHelpdesk.Infrastructure.Persistence
         {
         }
 
+        public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+        public DbSet<TicketJob> TicketJobs => Set<TicketJob>();
         public DbSet<User> Users => Set<User>();
         public DbSet<Category> Categories => Set<Category>();
         public DbSet<Ticket> Tickets => Set<Ticket>();
@@ -59,6 +61,16 @@ namespace SmartHelpdesk.Infrastructure.Persistence
             modelBuilder.Entity<TicketMessage>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<Attachment>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<AuditLog>().HasQueryFilter(e => !e.IsDeleted);
+
+            modelBuilder.Entity<TicketJob>().HasIndex(j => new { j.Kind, j.Status, j.NextAttemptAt });
+            modelBuilder.Entity<TicketJob>().HasOne<Ticket>().WithMany().HasForeignKey(j=>j.TicketId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<Attachment>().Property(a => a.TicketMessageId).IsConcurrencyToken();
+            modelBuilder.Entity<Ticket>().Property(t=>t.Version).IsConcurrencyToken();
+
+            modelBuilder.Entity<UserNotification>().HasIndex(n => new { n.EventId, n.RecipientId }).IsUnique();
+            modelBuilder.Entity<UserNotification>().HasIndex(n => new { n.RecipientId, n.Date });
+            modelBuilder.Entity<UserNotification>().Property(n => n.Title).HasMaxLength(250);
+            modelBuilder.Entity<UserNotification>().Property(n => n.Message).HasMaxLength(2000);
 
             // Configure Users
             modelBuilder.Entity<User>(entity =>

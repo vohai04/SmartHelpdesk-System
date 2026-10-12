@@ -24,17 +24,23 @@ namespace SmartHelpdesk.Application.Features.Attachments.Commands.UploadAttachme
 
         public async Task<AttachmentDto> Handle(UploadAttachmentCommand request, CancellationToken cancellationToken)
         {
+            var actor = await _unitOfWork.Repository<User>().GetByIdAsync(request.UploadedById);
+            var ticket = request.TicketId.HasValue ? await _unitOfWork.Repository<Ticket>().GetByIdAsync(request.TicketId.Value) : null;
+            if (actor is null || !actor.IsActive || actor.IsDeleted) throw new UnauthorizedAccessException("Account unavailable.");
+            if (ticket is null || ticket.IsDeleted) throw new SmartHelpdesk.Domain.Exceptions.NotFoundException("Ticket unavailable.");
+            if (actor.Role == Domain.Enums.UserRole.Customer && ticket.CreatedById != actor.Id) throw new UnauthorizedAccessException("You cannot upload to this ticket.");
+            if (ticket.Status == Domain.Enums.TicketStatus.Closed || request.TicketMessageId.HasValue) throw new SmartHelpdesk.Domain.Exceptions.BadRequestException("Upload to an open ticket, then attach the file when sending a message.");
             var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".pdf", ".docx" };
             var extension = Path.GetExtension(request.FileName).ToLowerInvariant();
             
             if (!allowedExtensions.Contains(extension))
             {
-                throw new Exception($"Định dạng file {extension} không được hỗ trợ.");
+                throw new SmartHelpdesk.Domain.Exceptions.BadRequestException($"Định dạng file {extension} không được hỗ trợ.");
             }
 
             if (request.FileSize > 5 * 1024 * 1024)
             {
-                throw new Exception("Kích thước file không được vượt quá 5MB.");
+                throw new SmartHelpdesk.Domain.Exceptions.BadRequestException("Kích thước file không được vượt quá 5MB.");
             }
 
             var filePath = await _fileStorageService.SaveFileAsync(request.FileStream, request.FileName, cancellationToken);

@@ -1,35 +1,27 @@
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { 
-  ArrowLeft, 
-  PaperPlaneRight, 
-  Sparkle, 
+import {
+  ArrowLeft,
+  CaretDown,
+  PaperPlaneRight,
+  Sparkle,
   LockKey,
   Paperclip,
-  User,
   CheckCircle,
   Tag,
   X,
-  MagnifyingGlass
 } from "@phosphor-icons/react";
 import { useAuthStore } from "../../store/authStore";
-import { ticketService, type TicketDto, type TicketMessageDto, type AgentDto } from "../../services/ticketService";
+import { ticketService, priorityLabel, applyTicketUpdate, type TicketDto, type TicketMessageDto, type AgentDto } from "../../services/ticketService";
 import { signalRService } from "../../services/signalrService";
 import { useToast } from "../../hooks/use-toast";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../../components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "../../components/ui/avatar";
+import { SecureAttachment } from "../../components/tickets/SecureAttachment";
+import { TicketWorkflowPanel } from "../../components/tickets/TicketWorkflowPanel";
 
-// ─── Badges ───────────────────────────────────────────────────────────────────
+// Ticket badge palettes.
 const STATUS_STYLE: Record<string, { bg: string; color: string; border: string }> = {
   Open:       { bg: "var(--accent-subtle)",   color: "var(--accent)",   border: "var(--accent-border)" },
-  InProgress: { bg: "#fef3c7",                color: "#d97706",         border: "#fde68a" },
+  InProgress: { bg: "var(--warning-subtle)",                color: "var(--warning)",         border: "var(--warning-border)" },
   Resolved:   { bg: "var(--success-subtle)",  color: "var(--success)",  border: "var(--success-border)" },
   Closed:     { bg: "var(--surface-bg)",      color: "var(--text-tertiary)", border: "var(--border-strong)" },
 };
@@ -37,15 +29,8 @@ const STATUS_STYLE: Record<string, { bg: string; color: string; border: string }
 const PRIORITY_STYLE: Record<string, { bg: string; color: string; border: string }> = {
   Low:        { bg: "var(--surface-bg)",      color: "var(--text-secondary)", border: "var(--border-default)" },
   Medium:     { bg: "var(--accent-subtle)",   color: "var(--accent)",         border: "var(--accent-border)" },
-  High:       { bg: "#fee2e2",                color: "#b91c1c",               border: "#fecaca" },
-  Urgent:     { bg: "#7f1d1d",                color: "#fef2f2",               border: "#ef4444" },
-};
-
-const getAbsoluteUrl = (url: string) => {
-  if (!url) return '';
-  if (url.startsWith('http')) return url;
-  const baseUrl = (import.meta.env.VITE_API_URL || 'https://localhost:7055/api').replace('/api', '');
-  return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+  High:       { bg: "var(--danger-subtle)",                color: "var(--danger)",               border: "var(--danger-border)" },
+  Urgent:     { bg: "var(--danger-subtle)",                color: "var(--danger)",               border: "var(--danger-border)" },
 };
 
 export function TicketDetailPage() {
@@ -53,50 +38,49 @@ export function TicketDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { toast } = useToast();
-  
+
   const [ticket, setTicket] = useState<TicketDto | null>(null);
   const [messages, setMessages] = useState<TicketMessageDto[]>([]);
   const [agents, setAgents] = useState<AgentDto[]>([]);
-  const [searchAgent, setSearchAgent] = useState("");
-  
+  const [mobileInfoOpen, setMobileInfoOpen] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [replyContent, setReplyContent] = useState("");
   const [isInternal, setIsInternal] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const requestId=useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const isAdminOrAgent = user?.role === "Admin" || user?.role === "Agent";
 
-  const loadTicketData = async () => {
+  const loadTicketData = useCallback(async () => {
     if (!id) return;
+    const sequence=++requestId.current;
+    setLoading(true);
     try {
-      setLoading(true);
-      const [ticketData, messageData] = await Promise.all([
-        ticketService.getTicketById(id),
-        ticketService.getMessages(id, 1, 100)
+      const [ticketData,messageData,agentList]=await Promise.all([
+        ticketService.getTicketById(id),ticketService.getMessages(id,1,100),
+        isAdminOrAgent?ticketService.getAgents():Promise.resolve([]),
       ]);
-      setTicket(ticketData);
-      setMessages(messageData.items);
-      
-      if (isAdminOrAgent) {
-        const agentList = await ticketService.getAgents();
-        setAgents(agentList);
-      }
-    } catch (error) {
-      console.error(error);
-      toast({ title: "Error", description: "Failed to load ticket details", variant: "destructive" });
+      if(sequence!==requestId.current) return;
+      setTicket(current=>current && current.id===ticketData.id && current.version>ticketData.version?current:ticketData);
+      setMessages(messageData.items);setAgents(agentList);
+    } catch {
+      if(sequence===requestId.current) toast({title:"Error",description:"Failed to load ticket details",variant:"destructive"});
     } finally {
-      setLoading(false);
+      if(sequence===requestId.current) setLoading(false);
     }
-  };
+  }, [id,isAdminOrAgent,toast]);
 
+  const cancelPendingLoad=useCallback(()=>{requestId.current++;},[]);
   useEffect(() => {
-    loadTicketData();
-  }, [id]);
+    const timer = setTimeout(() => { void loadTicketData(); }, 0);
+    return () => {clearTimeout(timer);cancelPendingLoad();};
+  }, [loadTicketData, cancelPendingLoad]);
 
   useEffect(() => {
     if (window.location.hash) {
@@ -106,7 +90,7 @@ export function TicketDetailPage() {
         element.scrollIntoView({ behavior: "smooth", block: "center" });
         // Optional: highlight effect
         const originalBg = element.style.backgroundColor;
-        element.style.backgroundColor = 'var(--indigo-50, #eef2ff)';
+        element.style.backgroundColor = 'var(--accent-subtle)';
         element.style.transition = 'background-color 1s ease';
         setTimeout(() => {
           element.style.backgroundColor = originalBg;
@@ -119,15 +103,15 @@ export function TicketDetailPage() {
 
   useEffect(() => {
     // Subscribe to SignalR to reload messages real-time
-    const unsubscribe = signalRService.subscribe((_title, _message) => {
+    const unsubscribe = signalRService.subscribe((_title, _message, ticketId, messageId) => {
       // Check if this notification is relevant to the current ticket,
       // or just safely reload the messages stream
-      if (id) {
+      if (id && ticketId === id) {
         ticketService.getTicketById(id).then(data => {
-          setTicket(data);
+          setTicket(current=>current && current.id===data.id && current.version>data.version ? current : data);
         }).catch(console.error);
 
-        ticketService.getMessages(id, 1, 100).then(data => {
+        if (messageId) ticketService.getMessages(id, 1, 100).then(data => {
           setMessages(data.items);
         }).catch(console.error);
       }
@@ -138,39 +122,42 @@ export function TicketDetailPage() {
     };
   }, [id]);
 
+  useEffect(() => {
+    let lastVersion=-1;
+    const updates=signalRService.subscribeTicketUpdates(update=>{
+      if(update.ticketId!==id || update.version<=lastVersion) return;
+      lastVersion=update.version;
+      setTicket(current=>current?applyTicketUpdate(current,update):current);
+      // AI summary is staff-only, so fetch it through the authorized endpoint.
+      // Triage never reloads the conversation stream.
+      void ticketService.getTicketById(update.ticketId).then(data=>setTicket(current=>current && current.id===data.id && current.version>data.version?current:data)).catch(()=>{});
+    });
+    const reconnect=signalRService.subscribeReconnect(()=>{ void loadTicketData(); });
+    return ()=>{updates();reconnect();};
+  }, [id, loadTicketData]);
+
+  const [isUpdating, setIsUpdating] = useState(false);
+  const handleWorkflowUpdate = (updated:TicketDto) => {
+    setTicket(current=>current && current.version>updated.version?current:updated);
+    void ticketService.getMessages(updated.id).then(data=>setMessages(data.items)).catch(()=>{});
+  };
   const handleUpdateTicket = async (field: string, value: string | null) => {
-    if (!id || !ticket) return;
+    if (!id || !ticket || isUpdating) return;
+    setIsUpdating(true);
     try {
-      const payload = { [field]: value };
-      await ticketService.updateTicket(id, payload);
-      
-      let updatedTicket = { ...ticket, [field]: value } as TicketDto;
-      if (field === "assignedToId") {
-        if (value === "00000000-0000-0000-0000-000000000000" || value === null) {
-            updatedTicket.assignedToName = undefined;
-        } else {
-            const agent = agents.find(a => a.id === value);
-            if (agent) {
-                updatedTicket.assignedToName = agent.fullName;
-            } else if (value === user?.id) {
-                updatedTicket.assignedToName = user?.fullName;
-            }
-        }
-      }
-      
-      setTicket(updatedTicket);
-      toast({ title: "Updated", description: `Ticket ${field} updated successfully.` });
-    } catch (error) {
-      console.error(error);
-      toast({ title: "Error", description: `Failed to update ${field}`, variant: "destructive" });
-    }
+      const updated = await ticketService.updateTicket(id, { [field]: value, expectedVersion: ticket.version });
+      setTicket(current=>current && current.version>updated.version?current:updated);
+    } catch {
+      toast({ title: "Could not update", description: "Refresh the ticket and try again.", variant: "destructive" });
+      void ticketService.getTicketById(id).then(data=>setTicket(current=>current && current.version>data.version?current:data)).catch(()=>{});
+    } finally { setIsUpdating(false); }
   };
 
   const handleSendReply = async () => {
-    if (!id || (!replyContent.trim() && selectedFiles.length === 0)) return;
+    if (!id || !replyContent.trim()) return;
     try {
       setIsSending(true);
-      
+
       const attachmentIds: string[] = [];
       if (selectedFiles.length > 0) {
         for (const file of selectedFiles) {
@@ -223,41 +210,41 @@ export function TicketDetailPage() {
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-slate-500">Loading ticket details...</div>;
+    return <div className="p-8 text-center text-[var(--text-secondary)]">Loading ticket details...</div>;
   }
 
   if (!ticket) {
-    return <div className="p-8 text-center text-red-500">Ticket not found</div>;
+    return <div className="p-8 text-center text-[var(--danger)] ">Ticket not found</div>;
   }
 
   return (
-    <div 
-      className="flex flex-col rounded-xl overflow-hidden shadow-sm" 
-      style={{ 
-        height: "calc(100vh - 120px)", 
+    <div
+      className="ticket-detail flex flex-col rounded-xl shadow-sm overflow-hidden"
+      style={{
         background: "var(--surface-bg)",
         border: "1px solid var(--border-default)"
       }}
     >
       {/* Header */}
-      <div className="flex items-center gap-4 px-6 py-4 border-b border-slate-200 bg-white shrink-0">
-        <button 
+      <div className="flex items-start gap-2 px-3 py-3 sm:gap-4 sm:px-6 sm:py-4 shrink-0" style={{ borderBottom: "1px solid var(--border-subtle)", background: "var(--surface-default)" }}>
+        <button
           onClick={() => navigate('/tickets')}
-          className="p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+          aria-label="Back to tickets"
+          className="p-2 -ml-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-bg)] transition-colors"
         >
           <ArrowLeft size={20} />
         </button>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-xl font-bold text-slate-900 truncate">{ticket.title}</h1>
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <h1 className="w-full sm:w-auto sm:flex-1 min-w-0 text-base sm:text-xl font-bold truncate" title={ticket.title} style={{ color: "var(--text-primary)" }}>{ticket.title}</h1>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold" style={{ background: STATUS_STYLE[ticket.status]?.bg, color: STATUS_STYLE[ticket.status]?.color, border: `1px solid ${STATUS_STYLE[ticket.status]?.border}` }}>
               {ticket.status}
             </span>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold" style={{ background: PRIORITY_STYLE[ticket.priority]?.bg, color: PRIORITY_STYLE[ticket.priority]?.color, border: `1px solid ${PRIORITY_STYLE[ticket.priority]?.border}` }}>
-              {ticket.priority}
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold" style={{ background: (PRIORITY_STYLE[ticket.priority ?? ""] ?? PRIORITY_STYLE.Low).bg, color: (PRIORITY_STYLE[ticket.priority ?? ""] ?? PRIORITY_STYLE.Low).color, border: `1px solid ${(PRIORITY_STYLE[ticket.priority ?? ""] ?? PRIORITY_STYLE.Low).border}` }}>
+              {priorityLabel(ticket)}
             </span>
           </div>
-          <p className="text-sm text-slate-500 flex items-center gap-2">
+          <p className="text-xs sm:text-sm flex flex-wrap items-center gap-x-2 gap-y-1" style={{ color: "var(--text-secondary)" }}>
             <span>Ticket #{ticket.id.split('-')[0].toUpperCase()}</span>
             <span>•</span>
             <span>Created by {ticket.createdByName} on {new Date(ticket.createdAt).toLocaleDateString()}</span>
@@ -265,15 +252,26 @@ export function TicketDetailPage() {
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden min-h-0">
         {/* Left Panel: Info */}
-        <div className="w-80 border-r border-slate-200 bg-slate-50 overflow-y-auto shrink-0 hidden md:block">
-          <div className="p-5 space-y-6">
-            
+        <div className="w-full lg:w-80 shrink-0 lg:border-r flex flex-col" style={{ borderColor: "var(--border-subtle)", background: "var(--surface-bg)" }}>
+          {/* Mobile Toggle */}
+          <button
+            className="lg:hidden flex items-center justify-between p-4 border-b transition-colors"
+            aria-expanded={mobileInfoOpen}
+            style={{ borderColor: "var(--border-subtle)", color: "var(--text-primary)" }}
+            onClick={() => setMobileInfoOpen(!mobileInfoOpen)}
+          >
+            <span className="text-[13px] font-semibold">Ticket Details</span>
+            <CaretDown size={14} weight="bold" style={{ color: "var(--text-tertiary)", transform: mobileInfoOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+          </button>
+
+          <div className={`${mobileInfoOpen ? 'block' : 'hidden'} lg:block flex-1 p-5 space-y-6 overflow-y-auto max-h-[30dvh] lg:max-h-none`}>
+
             {/* Description */}
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Description</h3>
-              <div className="bg-white p-4 rounded-xl border border-slate-200 text-sm text-slate-700 whitespace-pre-wrap">
+              <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-tertiary)" }}>Description</h3>
+              <div className="p-4 rounded-xl text-sm whitespace-pre-wrap" style={{ background: "var(--surface-default)", border: "1px solid var(--border-default)", color: "var(--text-secondary)" }}>
                 {ticket.description}
               </div>
             </div>
@@ -281,17 +279,17 @@ export function TicketDetailPage() {
             {/* AI Insights (Hidden from Customers) */}
             {isAdminOrAgent && ticket.isAiTriaged && (
               <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1.5">
-                  <Sparkle size={14} className="text-indigo-500" />
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] mb-2 flex items-center gap-1.5">
+                  <Sparkle size={14} className="text-[var(--accent)] " />
                   AI Triage
                 </h3>
-                <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100 space-y-2.5">
+                <div className="bg-[var(--accent-subtle)]/50 p-3 rounded-xl border border-[var(--accent-border)] space-y-2.5">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Sentiment:</span>
-                    <span className="font-medium text-indigo-700 capitalize">{ticket.aiSentiment || 'Neutral'}</span>
+                    <span className="text-[var(--text-secondary)]">Sentiment:</span>
+                    <span className="font-medium text-[var(--accent)] capitalize">{ticket.aiSentiment || 'Neutral'}</span>
                   </div>
                   {ticket.aiSummary && (
-                    <div className="pt-2 border-t border-indigo-100 text-[13px] text-indigo-900/80 leading-relaxed">
+                    <div className="pt-2 border-t border-[var(--accent-border)] text-[13px] text-[var(--text-secondary)] leading-relaxed">
                       <span className="font-semibold block mb-1">Summary:</span>
                       {ticket.aiSummary}
                     </div>
@@ -302,121 +300,31 @@ export function TicketDetailPage() {
 
             {/* Details */}
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Details</h3>
-              <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">
-                <div className="p-3 flex items-center justify-between text-sm">
-                  <span className="text-slate-500 flex items-center gap-2"><Tag size={16} /> Category</span>
-                  <span className="font-medium text-slate-900">{ticket.categoryName}</span>
-                </div>
-                <div className="p-3 flex items-center justify-between text-sm">
-                  <span className="text-slate-500 flex items-center gap-2"><User size={16} /> Assignee</span>
-                  {user?.role === 'Admin' && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger className="flex items-center gap-2 p-1 hover:bg-slate-100 rounded-md transition-colors outline-none cursor-pointer">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="text-[10px] bg-indigo-100 text-indigo-700 font-bold">
-                            {ticket.assignedToName ? ticket.assignedToName.charAt(0).toUpperCase() : '?'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium text-slate-900 text-xs truncate max-w-[100px]">{ticket.assignedToName || 'Unassigned'}</span>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-[240px] max-h-[300px] overflow-y-auto">
-                        <DropdownMenuLabel>Assign Ticket</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <div className="px-2 py-2 border-b border-slate-100 sticky top-0 bg-white z-10">
-                          <div className="relative flex items-center">
-                            <MagnifyingGlass className="absolute left-2.5 text-slate-400" size={14} />
-                            <input 
-                              type="text" 
-                              placeholder="Search agent..." 
-                              value={searchAgent}
-                              onChange={e => setSearchAgent(e.target.value)}
-                              onClick={e => e.stopPropagation()}
-                              onKeyDown={e => e.stopPropagation()}
-                              className="w-full h-8 pl-8 pr-2.5 rounded-md text-[12px] outline-none bg-slate-50/50 hover:bg-slate-100 focus:bg-slate-100 transition-colors text-slate-700 placeholder:text-slate-400"
-                              autoFocus
-                            />
-                          </div>
-                        </div>
-                        <DropdownMenuItem onClick={() => handleUpdateTicket("assignedToId", "00000000-0000-0000-0000-000000000000")}>
-                          <span className="text-slate-500 italic">Unassigned</span>
-                        </DropdownMenuItem>
-                        {agents
-                          .filter(a => a.fullName.toLowerCase().includes(searchAgent.toLowerCase()) || a.email.toLowerCase().includes(searchAgent.toLowerCase()))
-                          .map(a => (
-                          <DropdownMenuItem key={a.id} onClick={() => handleUpdateTicket("assignedToId", a.id)}>
-                            <Avatar className="h-5 w-5 mr-2">
-                              <AvatarFallback className="text-[8px] bg-indigo-100 text-indigo-700">{a.fullName.charAt(0).toUpperCase()}</AvatarFallback>
-                            </Avatar>
-                            <span className="truncate flex-1">{a.fullName}</span>
-                          </DropdownMenuItem>
-                        ))}
-                        {searchAgent && agents.filter(a => a.fullName.toLowerCase().includes(searchAgent.toLowerCase()) || a.email.toLowerCase().includes(searchAgent.toLowerCase())).length === 0 && (
-                          <div className="px-2 py-3 text-center text-xs text-slate-400">No agents found</div>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                  {user?.role === 'Agent' && (
-                    <div className="flex flex-col items-end gap-1.5">
-                      <div className="flex items-center gap-1.5 ml-1">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="text-[10px] bg-slate-200 text-slate-700 font-bold">
-                            {ticket.assignedToName ? ticket.assignedToName.charAt(0).toUpperCase() : '?'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium text-slate-900 text-xs truncate max-w-[120px]" title={ticket.assignedToName || 'Unassigned'}>{ticket.assignedToName || 'Unassigned'}</span>
-                      </div>
-                      {ticket.assignedToId === user.id ? (
-                        <button onClick={() => handleUpdateTicket("assignedToId", "00000000-0000-0000-0000-000000000000")} className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-md transition-colors w-full text-center">
-                          Unassign
-                        </button>
-                      ) : (!ticket.assignedToId || ticket.assignedToId === "00000000-0000-0000-0000-000000000000") ? (
-                        <button onClick={() => handleUpdateTicket("assignedToId", user.id)} className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-md transition-colors w-full text-center">
-                          Assign to me
-                        </button>
-                      ) : null}
-                    </div>
-                  )}
-                  {user?.role === 'Customer' && (
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="text-[10px] bg-slate-200 text-slate-700 font-bold">
-                          {ticket.assignedToName ? ticket.assignedToName.charAt(0).toUpperCase() : '?'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium text-slate-900 text-xs">{ticket.assignedToName || 'Unassigned'}</span>
-                    </div>
-                  )}
+              <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-tertiary)" }}>Details</h3>
+              <div className="rounded-xl" style={{ background: "var(--surface-default)", border: "1px solid var(--border-default)" }}>
+                <div className="p-3 flex items-center justify-between text-sm" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                  <span className="flex items-center gap-2" style={{ color: "var(--text-secondary)" }}><Tag size={16} /> Category</span>
+                  <span className="font-medium" style={{ color: "var(--text-primary)" }}>{ticket.categoryName}</span>
                 </div>
               </div>
             </div>
+            <TicketWorkflowPanel ticket={ticket} agents={agents} onUpdate={handleWorkflowUpdate} onArchived={()=>navigate("/tickets")}/>
 
             {/* Admin Controls */}
-            {isAdminOrAgent && (
+            {isAdminOrAgent && (user?.role === "Admin" || ticket.assignedToId === user?.id) && ticket.status !== "Closed" && ticket.status !== "Resolved" && (
               <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Management</h3>
-                <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-tertiary)" }}>Management</h3>
+                <div className="p-3 rounded-xl space-y-3" style={{ background: "var(--surface-default)", border: "1px solid var(--border-default)" }}>
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Status</label>
-                    <select 
-                      className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
-                      value={ticket.status}
-                      onChange={(e) => handleUpdateTicket("status", e.target.value)}
-                    >
-                      <option value="Open">Open</option>
-                      <option value="InProgress">In Progress</option>
-                      <option value="Resolved">Resolved</option>
-                      <option value="Closed">Closed</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Priority</label>
-                    <select 
-                      className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
-                      value={ticket.priority}
+                    <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Priority</label>
+                    <select
+                      className="w-full text-sm rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
+                      style={{ background: "var(--surface-bg)", border: "1px solid var(--border-strong)", color: "var(--text-primary)" }}
+                      value={ticket.priority ?? ""}
+                      disabled={isUpdating}
                       onChange={(e) => handleUpdateTicket("priority", e.target.value)}
                     >
+                      {!ticket.priority && <option value="" disabled>{priorityLabel(ticket)}</option>}
                       <option value="Low">Low</option>
                       <option value="Medium">Medium</option>
                       <option value="High">High</option>
@@ -426,64 +334,53 @@ export function TicketDetailPage() {
                 </div>
               </div>
             )}
-            
+
           </div>
         </div>
 
         {/* Right Panel: Messages */}
-        <div className="flex-1 flex flex-col bg-white overflow-hidden">
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden" style={{ background: "var(--surface-default)" }}>
           {/* Thread */}
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {messages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                <CheckCircle size={48} weight="light" className="mb-4 text-slate-300" />
+              <div className="h-full flex flex-col items-center justify-center text-[var(--text-tertiary)]">
+                <CheckCircle size={48} weight="light" className="mb-4 text-[var(--text-tertiary)]" />
                 <p>No messages yet.</p>
               </div>
             ) : (
               messages.map(msg => {
                 const isMe = msg.senderId === user?.id;
-                
+
                 return (
                   <div key={msg.id} id={`msg-${msg.id}`} className={`flex gap-4 max-w-[85%] ${isMe ? 'ml-auto flex-row-reverse' : ''} p-2 rounded-xl transition-colors`}>
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 mt-1" style={{ background: isMe ? '#2563eb' : '#64748b' }}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-1" style={{ background: isMe ? 'var(--accent)' : 'var(--text-secondary)', color: isMe ? 'var(--text-on-accent)' : 'var(--surface-default)' }}>
                       {msg.senderName.charAt(0).toUpperCase()}
                     </div>
-                    
+
                     <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                       <div className="flex items-baseline gap-2 mb-1 px-1">
-                        <span className="text-xs font-medium text-slate-700">{msg.senderName}</span>
-                        <span className="text-[10px] text-slate-400">{new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>{msg.senderName}</span>
+                        <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>{new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                       </div>
-                      
+
                       <div className={`
                         relative px-4 py-3 rounded-2xl text-[14px] leading-relaxed
-                        ${msg.isInternalNote 
-                          ? 'bg-amber-50 border border-amber-200 text-amber-900 rounded-tl-sm' 
-                          : isMe 
-                            ? 'bg-blue-600 text-white rounded-tr-sm shadow-sm' 
-                            : 'bg-slate-100 text-slate-800 rounded-tl-sm border border-slate-200'
+                        ${msg.isInternalNote
+                          ? 'bg-[var(--warning-subtle)] border border-[var(--warning-border)] text-[var(--warning)] rounded-tl-sm'
+                          : isMe
+                            ? 'bg-[var(--accent)] text-[var(--text-on-accent)] rounded-tr-sm shadow-sm'
+                            : 'rounded-tl-sm'
                         }
-                      `}>
+                      `} style={!msg.isInternalNote && !isMe ? { background: "var(--surface-bg)", color: "var(--text-primary)", border: "1px solid var(--border-strong)" } : undefined}>
                         {msg.isInternalNote && (
-                          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 mb-1">
+                          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--warning)] mb-1">
                             <LockKey size={12} weight="bold" /> Internal Note
                           </div>
                         )}
                         <div className="whitespace-pre-wrap">{msg.content}</div>
                         {msg.attachments && msg.attachments.length > 0 && (
                           <div className="mt-3 flex flex-wrap gap-2">
-                            {msg.attachments.map(att => (
-                              att.contentType.startsWith('image/') ? (
-                                <a key={att.id} href={getAbsoluteUrl(att.fileUrl)} target="_blank" rel="noopener noreferrer" className="block border border-slate-200 rounded-lg overflow-hidden hover:opacity-90 transition-opacity">
-                                  <img src={getAbsoluteUrl(att.fileUrl)} alt={att.fileName} className="h-20 object-cover max-w-[150px]" />
-                                </a>
-                              ) : (
-                                <a key={att.id} href={getAbsoluteUrl(att.fileUrl)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:text-blue-600 hover:border-blue-300 transition-colors">
-                                  <Paperclip size={14} />
-                                  <span className="truncate max-w-[120px]">{att.fileName}</span>
-                                </a>
-                              )
-                            ))}
+                            {msg.attachments.map(att => <SecureAttachment key={att.id} attachment={att}/>)}
                           </div>
                         )}
                       </div>
@@ -497,68 +394,76 @@ export function TicketDetailPage() {
 
           {/* Reply Box */}
           {ticket.status !== 'Closed' ? (
-            <div className="p-4 border-t border-slate-200 bg-slate-50">
+            <div className="p-4" style={{ borderTop: "1px solid var(--border-subtle)", background: "var(--surface-bg)" }}>
               <div className={`
-                bg-white border rounded-xl overflow-hidden transition-colors
-                ${isInternal ? 'border-amber-300 focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-100' : 'border-slate-300 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100'}
-              `}>
+                border rounded-xl overflow-hidden transition-colors
+                ${isInternal ? 'border-[var(--warning-border)] focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-100' : 'focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100'}
+              `} style={{ background: "var(--surface-default)", borderColor: !isInternal ? "var(--border-strong)" : undefined }}>
                 {isInternal && (
-                  <div className="bg-amber-50 px-3 py-1.5 border-b border-amber-100 flex items-center gap-1.5 text-xs font-semibold text-amber-700">
-                    <LockKey size={14} /> 
+                  <div className="bg-[var(--warning-subtle)] px-3 py-1.5 border-b border-[var(--warning-border)] flex items-center gap-1.5 text-xs font-semibold text-[var(--warning)] ">
+                    <LockKey size={14} />
                     Private Internal Note (Only visible to Agents)
                   </div>
                 )}
-                <textarea 
+                <textarea
                   className="w-full p-4 text-sm outline-none resize-none min-h-[100px] bg-transparent"
+                  style={{ color: "var(--text-primary)" }}
                   placeholder={isInternal ? "Write an internal note..." : "Type your reply..."}
                   value={replyContent}
                   onChange={(e) => setReplyContent(e.target.value)}
                 />
-                
+
                 {selectedFiles.length > 0 && (
                   <div className="px-3 pb-2 flex flex-wrap gap-2">
                     {selectedFiles.map((f, i) => (
-                      <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-xs font-medium text-slate-700">
-                        <Paperclip size={12} className="text-slate-500" />
+                      <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 bg-[var(--surface-bg)] border border-[var(--border-default)] rounded-lg text-xs font-medium text-[var(--text-secondary)]">
+                        <Paperclip size={12} className="text-[var(--text-secondary)]" />
                         <span className="truncate max-w-[120px]" title={f.name}>{f.name}</span>
-                        <button onClick={() => removeFile(i)} className="ml-1 text-slate-400 hover:text-red-500 transition-colors">
+                        <button onClick={() => removeFile(i)} className="ml-1 text-[var(--text-tertiary)] hover:text-[var(--danger)] transition-colors">
                           <X size={12} weight="bold" />
                         </button>
                       </div>
                     ))}
                   </div>
                 )}
-                
-                <div className="px-3 py-2 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="file" 
-                      multiple 
-                      className="hidden" 
-                      ref={fileInputRef} 
-                      onChange={handleFileChange} 
+
+                <div className="px-3 py-2 flex flex-wrap items-center justify-between gap-2" style={{ borderTop: "1px solid var(--border-subtle)", background: "var(--surface-bg)" }}>
+                  <div className="flex flex-wrap items-center gap-2 min-w-0">
+                    <input
+                      type="file"
+                      multiple
+                      className="hidden"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
                       accept=".jpg,.jpeg,.png,.pdf,.docx"
                     />
-                    <button 
+                    <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
+                      aria-label="Attach files"
+                      className="p-1.5 rounded-lg transition-colors"
+                      style={{ color: "var(--text-tertiary)" }}
+                      onMouseOver={e => { e.currentTarget.style.background = "var(--surface-hover)"; e.currentTarget.style.color = "var(--text-primary)"; }}
+                      onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-tertiary)"; }}
                     >
                       <Paperclip size={18} />
                     </button>
                     {isAdminOrAgent && (
                       <>
-                        <button 
+                        <button
                           onClick={() => setIsInternal(!isInternal)}
-                          className={`p-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-medium ${isInternal ? 'bg-amber-100 text-amber-700' : 'text-slate-500 hover:bg-slate-200'}`}
+                          className={`p-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-medium ${isInternal ? 'bg-[var(--warning-subtle)] text-[var(--warning)] ' : ''}`}
+                          style={{ color: !isInternal ? "var(--text-secondary)" : undefined }}
+                          onMouseOver={e => { if(!isInternal) { e.currentTarget.style.background = "var(--surface-hover)"; } }}
+                          onMouseOut={e => { if(!isInternal) { e.currentTarget.style.background = "transparent"; } }}
                         >
                           <LockKey size={16} />
                           {isInternal ? 'Internal Note ON' : 'Make Internal'}
                         </button>
-                        
-                        <button 
+
+                        <button
                           onClick={handleAiSuggest}
                           disabled={isSuggesting}
-                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-medium disabled:opacity-50"
+                          className="p-1.5 text-[var(--accent)] hover:bg-[var(--accent-subtle)] rounded-lg transition-colors flex items-center gap-1.5 text-xs font-medium disabled:opacity-50"
                         >
                           <Sparkle size={16} />
                           {isSuggesting ? 'Thinking...' : 'AI Suggest Reply'}
@@ -566,14 +471,14 @@ export function TicketDetailPage() {
                       </>
                     )}
                   </div>
-                  
-                  <button 
+
+                  <button
                     onClick={handleSendReply}
-                    disabled={isSending || (!replyContent.trim() && selectedFiles.length === 0)}
+                    disabled={isSending || (isAdminOrAgent && ticket.status === "Resolved" && !isInternal) || (user?.role === "Agent" && ticket.assignedToId !== user.id && !isInternal) || !replyContent.trim()}
                     className={`
-                      px-4 py-1.5 rounded-lg flex items-center gap-2 text-sm font-medium text-white transition-all
-                      ${isSending || (!replyContent.trim() && selectedFiles.length === 0) ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-md'}
-                      ${isInternal ? 'bg-amber-600 hover:bg-amber-700' : 'bg-blue-600 hover:bg-blue-700'}
+                      px-4 py-1.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all
+                      ${isSending || !replyContent.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-md'}
+                      ${isInternal ? 'bg-[var(--warning)] text-[var(--text-on-warning)] hover:bg-[var(--warning)]' : 'bg-[var(--accent)] text-[var(--text-on-accent)] hover:bg-[var(--accent-hover)]'}
                     `}
                   >
                     <span>{isSending ? 'Sending...' : 'Send'}</span>
@@ -583,8 +488,8 @@ export function TicketDetailPage() {
               </div>
             </div>
           ) : (
-            <div className="p-4 bg-slate-50 border-t border-slate-200 text-center">
-              <p className="text-slate-500 text-sm">This ticket is closed. You cannot send further replies.</p>
+            <div className="p-4 bg-[var(--surface-bg)] border-t border-[var(--border-default)] text-center">
+              <p className="text-[var(--text-secondary)] text-sm">This ticket is closed. You cannot send further replies.</p>
             </div>
           )}
         </div>
