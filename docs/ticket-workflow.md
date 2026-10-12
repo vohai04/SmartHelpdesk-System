@@ -1,0 +1,23 @@
+# Ticket responsibility and lifecycle
+
+An assigned agent remains responsible until a handover is accepted or an Admin explicitly reassigns the ticket. Requesting, rejecting or cancelling a handover never removes the existing assignee. Only one handover can be pending. The receiving agent must be active and have the Agent role. Admin can choose a recipient for requests made to the coordination queue.
+
+Unassigned Open tickets can be claimed. Starting work requires an assignee. Only Open tickets that have never started can return to the queue, with a reason. Work that has already started uses the handover process. Emergency Admin reassignment requires a reason and changes ownership immediately. Pending requests are cleared by reassignment, resolution, closure and withdrawal. The current request is stored on the ticket; completed request history, reasons and previous values are retained in audit records.
+
+The owning agent or Admin can start work, request customer information, resolve a ticket or change priority. Other agents can read and add internal notes, but cannot send public replies or change another agent's ticket. A public staff reply on assigned Open work starts processing. WaitingForCustomer requires a public information request. A customer reply resumes work; internal notes do not. Resolution requires a public resolution message. Customers can confirm resolution, reopen their own resolved/closed ticket with a reason, or withdraw their request. Admin exception closure requires a reason. Closed tickets reject messages until reopened. Archiving is permitted only after closure and preserves an audit record.
+
+Reopening keeps an eligible owner. If that owner is no longer eligible, the ticket goes to Open and the coordination queue. Deactivating or demoting an agent is blocked while they own active tickets or are the target of an active handover: Admin must transfer/cancel these first. HTTP authorization rejects inactive accounts and JWT role claims that no longer match the database. In-process SignalR sessions are aborted after account changes; deployments across multiple processes would require shared session revocation.
+
+Each workflow action sends an expected ticket version. A stale request or simultaneous write returns 409. User row locks serialize assignment against account changes. Ticket updates, audit entries, public workflow messages and notification jobs commit together. Realtime payloads include assignee details; frontend ignores older versions and reconciles after reconnect. Notification transport failure does not turn a committed action into an API failure.
+
+Handover reminders are durable jobs. `TicketWorkflow:TransferReminderMinutes` defaults to 60 (allowed range 1–1440); an overdue pending request notifies active Admins. This is a reminder, not an automatic transfer. There is no automatic closure or SLA timer policy. Admin uses “Pending handovers” and “Needs coordination” filters to find requests that need attention.
+
+Attachments require ticket access on upload and authenticated download. Public static upload URLs are blocked. Linking requires an unused upload belonging to the sender and the same ticket. Concurrent attempts to link the same upload are rejected. Customer downloads cannot access another customer's ticket or internal note attachments.
+
+Successful-resolution metrics exclude new administrative/withdrawal closures that have no resolution. Resolution timestamps remain stable when later internal notes arrive. Existing closed records with no recorded closure reason retain their legacy metric treatment because their historical outcome is unknown. Existing priorities, assignees and statuses are preserved by migration; StartedAt is backfilled for existing non-Open tickets. Legacy invalid assignments are surfaced in the coordination filter instead of silently rewritten.
+
+## Assignment notifications
+
+Ownership changes enqueue recipient-specific notification jobs in the same transaction. The new owner receives “Ticket assigned to you”; the previous owner receives “Ticket reassigned”. Self-initiated ownership changes do not notify the actor. Handover requests target the receiving agent, or active administrators when no recipient was selected.
+
+Notifications persist in `UserNotifications` before SignalR delivery. A unique event/recipient index prevents duplicate rows after job retries. The inbox is scoped to the authenticated recipient and loaded on login, refresh, reconnect and window focus. Clicking a notification marks it read; dismissing the shown entries persists across reloads. The inbox shows the latest 50 entries with the total unread count. Existing already-completed events from before this migration are not backfilled.

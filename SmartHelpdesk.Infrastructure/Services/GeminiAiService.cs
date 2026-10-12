@@ -18,7 +18,8 @@ namespace SmartHelpdesk.Infrastructure.Services
         public GeminiAiService(HttpClient httpClient, IConfiguration configuration)
         {
             _httpClient = httpClient;
-            _apiKey = configuration["Gemini:ApiKey"];
+            _apiKey = configuration["Gemini:ApiKey"] ?? string.Empty;
+            _modelUrl = configuration["Gemini:Endpoint"] ?? _modelUrl;
         }
 
         public async Task<string> SuggestReplyAsync(string ticketTitle, string ticketDescription, string chatHistory, string currentUserName, string currentUserRole, CancellationToken cancellationToken = default)
@@ -62,11 +63,11 @@ Mô tả: {description}";
             {
                 var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 var result = JsonSerializer.Deserialize<AiTriageResult>(jsonResult, options);
-                return result ?? new AiTriageResult();
+                return result ?? throw new InvalidOperationException("Empty AI result.");
             }
             catch
             {
-                return new AiTriageResult(); // Fallback
+                throw new InvalidOperationException("Invalid AI JSON result.");
             }
         }
 
@@ -75,7 +76,7 @@ Mô tả: {description}";
             if (string.IsNullOrEmpty(_apiKey))
                 throw new Exception("Gemini API Key is not configured.");
 
-            var requestUrl = $"{_modelUrl}?key={_apiKey}";
+            var requestUrl = _modelUrl;
             
             object requestBody;
             if (expectJson)
@@ -94,9 +95,11 @@ Mô tả: {description}";
                 };
             }
 
-            var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+            using var request = new HttpRequestMessage(HttpMethod.Post, requestUrl);
+            request.Headers.Add("x-goog-api-key", _apiKey);
+            request.Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
-            var response = await _httpClient.PostAsync(requestUrl, jsonContent, cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
             
             if (!response.IsSuccessStatusCode)
             {

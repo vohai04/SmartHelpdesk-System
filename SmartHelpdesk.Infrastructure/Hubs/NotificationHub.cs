@@ -6,11 +6,11 @@ using Microsoft.AspNetCore.SignalR;
 namespace SmartHelpdesk.Infrastructure.Hubs
 {
     [Authorize]
-    public class NotificationHub : Hub
+    public class NotificationHub(SmartHelpdesk.Infrastructure.Services.AccountSessions sessions) : Hub
     {
         public override async Task OnConnectedAsync()
         {
-            Console.WriteLine($"[SignalR] User Connected! ConnectionId: {Context.ConnectionId}, UserIdentifier: {Context.UserIdentifier}");
+            sessions.Add(Context);
             var role = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
             if (role == "Admin" || role == "Agent")
             {
@@ -22,6 +22,7 @@ namespace SmartHelpdesk.Infrastructure.Hubs
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
+            sessions.Remove(Context.ConnectionId);
             var role = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
             if (role == "Admin" || role == "Agent")
             {

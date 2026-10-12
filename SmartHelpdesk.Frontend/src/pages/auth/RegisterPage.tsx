@@ -19,7 +19,7 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-const inputBase = "w-full h-9 px-3 rounded-md border text-[13px] bg-white outline-none transition-all duration-150 placeholder:text-[color:var(--text-disabled)] text-[color:var(--text-primary)]";
+const inputBase = "w-full h-9 px-3 rounded-md border text-[13px] bg-[color:var(--surface-bg)] outline-none transition-all duration-150 placeholder:text-[color:var(--text-disabled)] text-[color:var(--text-primary)]";
 const inputNormal = `${inputBase} border-[color:var(--border-default)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-border)]`;
 const inputError  = `${inputBase} border-[color:var(--danger)] focus:border-[color:var(--danger)] focus:ring-2 focus:ring-[color:var(--danger-border)]`;
 
@@ -115,8 +115,8 @@ export function RegisterPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full h-9 flex items-center justify-center gap-2 rounded-md text-[13px] font-medium text-white transition-all duration-150 disabled:opacity-55 disabled:cursor-not-allowed"
-          style={{ background: "var(--text-primary)", boxShadow: "var(--shadow-xs)" }}
+          className="w-full h-9 flex items-center justify-center gap-2 rounded-md text-[13px] font-medium transition-all duration-150 disabled:opacity-55 disabled:cursor-not-allowed"
+          style={{ background: loading ? "var(--text-tertiary)" : "var(--text-primary)", color: "var(--surface-default)", boxShadow: "var(--shadow-xs)" }}
           onMouseOver={e => { if (!loading) e.currentTarget.style.background = "var(--text-secondary)"; }}
           onMouseOut={e => { if (!loading) e.currentTarget.style.background = "var(--text-primary)"; }}
           onMouseDown={e => { e.currentTarget.style.transform = "scale(0.99)"; }}

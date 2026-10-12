@@ -34,9 +34,21 @@ namespace SmartHelpdesk.WebApi.Middlewares
             {
                 await HandleCustomExceptionAsync(context, ex, HttpStatusCode.BadRequest);
             }
+            catch (ConflictException ex)
+            {
+                await HandleCustomExceptionAsync(context, ex, HttpStatusCode.Conflict);
+            }
             catch (NotFoundException ex)
             {
                 await HandleCustomExceptionAsync(context, ex, HttpStatusCode.NotFound);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                await HandleCustomExceptionAsync(context, ex, HttpStatusCode.Forbidden);
+            }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException ex)
+            {
+                await HandleCustomExceptionAsync(context, new Exception("The ticket changed. Refresh and try again.", ex), HttpStatusCode.Conflict);
             }
             catch (Exception ex)
             {
@@ -53,8 +65,7 @@ namespace SmartHelpdesk.WebApi.Middlewares
             var response = new
             {
                 StatusCode = context.Response.StatusCode,
-                Message = "Internal Server Error. Please try again later.",
-                Detailed = exception.Message // For debugging, normally hide this in production
+                Message = "Internal Server Error. Please try again later."
             };
 
             var jsonResponse = JsonSerializer.Serialize(response);

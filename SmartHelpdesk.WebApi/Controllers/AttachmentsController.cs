@@ -21,6 +21,25 @@ namespace SmartHelpdesk.WebApi.Controllers
             _mediator = mediator;
         }
 
+        [HttpGet("{id}/content")]
+        public async Task<IActionResult> Download(Guid id, [FromServices] SmartHelpdesk.Infrastructure.Persistence.ApplicationDbContext db, [FromServices] Microsoft.AspNetCore.Hosting.IWebHostEnvironment environment)
+        {
+            var attachment = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleOrDefaultAsync(db.Attachments, a => a.Id == id);
+            if (attachment is null) return NotFound();
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var role = User.FindFirstValue(ClaimTypes.Role);
+            var message = attachment.TicketMessageId.HasValue ? await db.TicketMessages.FindAsync(attachment.TicketMessageId.Value) : null;
+            var ticketId = attachment.TicketId ?? message?.TicketId;
+            var ticket = ticketId.HasValue ? await db.Tickets.FindAsync(ticketId.Value) : null;
+            if (ticket is null || ticket.IsDeleted) return NotFound();
+            if (role == "Customer" && (ticket.CreatedById != userId || message?.IsInternalNote == true)) return Forbid();
+            if (!attachment.TicketMessageId.HasValue && attachment.UploadedById != userId) return Forbid();
+            var folder = System.IO.Path.GetFullPath(System.IO.Path.Combine(environment.WebRootPath, "uploads"));
+            var path = System.IO.Path.GetFullPath(System.IO.Path.Combine(folder, System.IO.Path.GetFileName(attachment.FilePath)));
+            if (!path.StartsWith(folder + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || !System.IO.File.Exists(path)) return NotFound();
+            return PhysicalFile(path, attachment.ContentType, attachment.FileName);
+        }
+
         [HttpPost]
         public async Task<IActionResult> UploadAttachment(
             [FromForm] IFormFile file, 

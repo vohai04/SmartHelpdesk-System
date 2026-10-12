@@ -42,6 +42,14 @@ export const authService = {
     return axiosClient.post('/auth/register', data) as Promise<RegisterResponse>;
   },
   
+  updateProfile: async (data: { fullName: string }): Promise<LoginResponse> => {
+    return axiosClient.put('/auth/update-profile', data) as Promise<LoginResponse>;
+  },
+
+  changePassword: async (data: { currentPassword: string; newPassword: string }): Promise<{ success: boolean }> => {
+    return axiosClient.put('/auth/change-password', data) as Promise<{ success: boolean }>;
+  },
+
   logout: async (): Promise<void> => {
     // JWT is stateless. We only need to clear the token on the frontend.
     // No backend call is required unless token blacklisting is implemented.

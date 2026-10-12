@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using SmartHelpdesk.Application.Features.Users.Commands.RestoreUser;
 using SmartHelpdesk.Application.Features.Users.Commands.SoftDeleteUser;
 using SmartHelpdesk.Application.Features.Users.Queries.GetUsers;
@@ -32,7 +33,10 @@ namespace SmartHelpdesk.WebApi.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> SoftDeleteUser(Guid id)
         {
-            await _mediator.Send(new SoftDeleteUserCommand(id));
+            var userIdClaim = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+            Guid.TryParse(userIdClaim, out Guid currentUserId);
+
+            await _mediator.Send(new SoftDeleteUserCommand(id, currentUserId));
             return NoContent();
         }
 
@@ -49,6 +53,7 @@ namespace SmartHelpdesk.WebApi.Controllers
         public async Task<IActionResult> UpdateUserRole(Guid id, [FromBody] SmartHelpdesk.Application.Features.Users.Commands.UpdateUserRole.UpdateUserRoleCommand command)
         {
             command.UserId = id;
+            command.CurrentUserId = Guid.Parse(User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier)!);
             var result = await _mediator.Send(command);
             if (!result) return BadRequest("Could not update role. Ensure user exists and you are not demoting the last admin.");
             return NoContent();

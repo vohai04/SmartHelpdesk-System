@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   MagnifyingGlass,
@@ -8,7 +8,7 @@ import {
   CircleNotch,
   Funnel
 } from "@phosphor-icons/react";
-import { ticketService, type TicketDto } from "../../services/ticketService";
+import { ticketService, priorityLabel, applyTicketUpdate, type TicketDto } from "../../services/ticketService";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { CreateTicketModal } from "../../components/tickets/CreateTicketModal";
 import { signalRService } from "../../services/signalrService";
@@ -17,7 +17,7 @@ import { useAuthStore } from "../../store/authStore";
 // ─── Badges ───────────────────────────────────────────────────────────────────
 const STATUS_STYLE: Record<string, { bg: string; color: string; border: string }> = {
   Open:       { bg: "var(--accent-subtle)",   color: "var(--accent)",   border: "var(--accent-border)" },
-  InProgress: { bg: "#fef3c7",                color: "#d97706",         border: "#fde68a" },
+  InProgress: { bg: "var(--warning-subtle)",                color: "var(--warning)",         border: "var(--warning-border)" },
   Resolved:   { bg: "var(--success-subtle)",  color: "var(--success)",  border: "var(--success-border)" },
   Closed:     { bg: "var(--border-subtle)",   color: "var(--text-tertiary)", border: "var(--border-default)" },
 };
@@ -25,7 +25,7 @@ const STATUS_STYLE: Record<string, { bg: string; color: string; border: string }
 const PRIORITY_COLOR: Record<string, string> = {
   Low:    "var(--text-tertiary)",
   Medium: "var(--text-secondary)",
-  High:   "#ea580c",
+  High:   "var(--warning)",
   Urgent: "var(--danger)",
 };
 
@@ -64,6 +64,7 @@ function formatDate(d: string) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export function TicketsPage() {
+  const requestId=useRef(0);
   const [tickets, setTickets] = useState<TicketDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,8 +81,9 @@ export function TicketsPage() {
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
-  const fetchTickets = useCallback(async () => {
-    setLoading(true);
+  const fetchTickets = useCallback(async (showLoading = true) => {
+    const sequence=++requestId.current;
+    if(showLoading) setLoading(true);
     setError(null);
     try {
       const result = await ticketService.getTickets({
@@ -92,44 +94,41 @@ export function TicketsPage() {
         priority: priorityFilter || undefined,
         assignmentFilter: assignmentFilter || undefined,
       });
-      setTickets(result.items ?? []);
+      if(sequence!==requestId.current) return;
+      setTickets(current => (result.items ?? []).map(item => {
+        const previous=current.find(t=>t.id===item.id);
+        return previous && previous.version>item.version ? previous : item;
+      }));
       setTotalCount(result.totalCount ?? 0);
       setTotalPages(result.totalPages ?? 1);
     } catch {
-      setError("Failed to load tickets. Ensure the backend is running.");
+      if(sequence===requestId.current) setError("Failed to load tickets. Ensure the backend is running.");
     } finally {
-      setLoading(false);
+      if(sequence===requestId.current) setLoading(false);
     }
   }, [keyword, statusFilter, priorityFilter, assignmentFilter, pageNumber]);
 
   useEffect(() => {
-    setPageNumber(1);
-  }, [keyword, statusFilter, priorityFilter, assignmentFilter]);
-
-  useEffect(() => {
-    const t = setTimeout(fetchTickets, 300);
+    const t = setTimeout(() => fetchTickets(), 300);
     return () => clearTimeout(t);
   }, [fetchTickets]);
 
   useEffect(() => {
-    // Subscribe to SignalR notifications to trigger a realtime refresh
-    const unsubscribe = signalRService.subscribe((title, message) => {
-      console.log("Realtime notification received:", title, message);
-      // Re-fetch tickets to show updated AI priority
-      fetchTickets();
+    const notifications=signalRService.subscribe((_title,_message,ticketId)=>{if(ticketId) void fetchTickets(false);});
+    const updates=signalRService.subscribeTicketUpdates(update=>{
+      setTickets(current=>current.map(ticket=>applyTicketUpdate(ticket,update)));
+      void fetchTickets(false);
     });
-
-    return () => {
-      unsubscribe();
-    };
+    const reconnect=signalRService.subscribeReconnect(()=>{void fetchTickets(false);});
+    return ()=>{notifications();updates();reconnect();};
   }, [fetchTickets]);
 
   const hasActiveFilters = statusFilter !== "" || priorityFilter !== "" || assignmentFilter !== "";
 
   return (
-    <div className="space-y-6 animate-fade-up">
+    <div className="tickets-page workspace-page space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="page-heading">
         <div>
           <h1 className="text-[20px] font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
             Tickets
@@ -140,8 +139,8 @@ export function TicketsPage() {
         </div>
         <button
           onClick={() => setCreateModalOpen(true)}
-          className="h-9 px-4 rounded-lg text-[12px] font-semibold text-white flex items-center gap-2 transition-transform duration-150 active:scale-95"
-          style={{ background: "var(--accent)", boxShadow: "var(--shadow-sm)" }}
+          className="primary-button"
+
         >
           <Plus size={14} weight="bold" />
           New Ticket
@@ -149,9 +148,9 @@ export function TicketsPage() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
         <div
-          className="relative flex items-center flex-1 max-w-sm h-9 px-3 rounded-md border transition-all duration-150"
+          className="ticket-search relative flex items-center flex-1 max-w-sm h-11 px-3 rounded-lg border"
           style={{ background: "var(--surface-default)", borderColor: "var(--border-default)" }}
           onFocusCapture={e => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 0 2px var(--accent-border)"; }}
           onBlurCapture={e => { e.currentTarget.style.borderColor = "var(--border-default)"; e.currentTarget.style.boxShadow = "none"; }}
@@ -161,15 +160,15 @@ export function TicketsPage() {
             type="text"
             placeholder="Search tickets by title..."
             value={keyword}
-            onChange={e => setKeyword(e.target.value)}
-            className="flex-1 bg-transparent text-[13px] outline-none"
+            onChange={e => { setKeyword(e.target.value); setPageNumber(1); }}
+            className="flex-1 min-w-0 bg-transparent text-[13px] outline-none"
             style={{ color: "var(--text-primary)" }}
           />
           {loading && keyword && <CircleNotch size={14} className="animate-spin ml-1 flex-shrink-0" style={{ color: "var(--text-disabled)" }} />}
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Status Filter */}
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
@@ -202,13 +201,13 @@ export function TicketsPage() {
                   <DropdownMenu.Item
                     key={item.label}
                     className="flex items-center px-3 py-1.5 text-[12px] font-medium rounded-lg outline-none cursor-pointer transition-colors"
-                    style={{ 
+                    style={{
                       color: statusFilter === item.value ? "var(--accent)" : "var(--text-secondary)",
                       background: statusFilter === item.value ? "var(--accent-subtle)" : "transparent"
                     }}
                     onMouseOver={e => e.currentTarget.style.background = "var(--surface-bg)"}
                     onMouseOut={e => e.currentTarget.style.background = statusFilter === item.value ? "var(--accent-subtle)" : "transparent"}
-                    onClick={() => setStatusFilter(item.value)}
+                    onClick={() => { setStatusFilter(item.value); setPageNumber(1); }}
                   >
                     {item.label}
                   </DropdownMenu.Item>
@@ -245,17 +244,18 @@ export function TicketsPage() {
                   { label: "High", value: "High" },
                   { label: "Medium", value: "Medium" },
                   { label: "Low", value: "Low" },
+                  { label: "Unclassified", value: "Unclassified" },
                 ].map((item) => (
                   <DropdownMenu.Item
                     key={item.label}
                     className="flex items-center px-3 py-1.5 text-[12px] font-medium rounded-lg outline-none cursor-pointer transition-colors"
-                    style={{ 
+                    style={{
                       color: priorityFilter === item.value ? "var(--accent)" : "var(--text-secondary)",
                       background: priorityFilter === item.value ? "var(--accent-subtle)" : "transparent"
                     }}
                     onMouseOver={e => e.currentTarget.style.background = "var(--surface-bg)"}
                     onMouseOut={e => e.currentTarget.style.background = priorityFilter === item.value ? "var(--accent-subtle)" : "transparent"}
-                    onClick={() => setPriorityFilter(item.value)}
+                    onClick={() => { setPriorityFilter(item.value); setPageNumber(1); }}
                   >
                     {item.label}
                   </DropdownMenu.Item>
@@ -277,7 +277,7 @@ export function TicketsPage() {
                   }}
                 >
                   <Funnel size={14} weight={assignmentFilter ? "fill" : "regular"} />
-                  {assignmentFilter === "Unassigned" ? "Unassigned" : (assignmentFilter === "AssignedToMe" ? "Assigned to Me" : "Assignment")}
+                  {assignmentFilter === "PendingHandover" ? "Pending handovers" : assignmentFilter === "NeedsCoordination" ? "Needs coordination" : assignmentFilter === "Unassigned" ? "Unassigned" : (assignmentFilter === "AssignedToMe" ? "Assigned to Me" : "Assignment")}
                 </button>
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
@@ -291,17 +291,19 @@ export function TicketsPage() {
                     { label: "All Tickets", value: "" },
                     { label: "Assigned to Me", value: "AssignedToMe" },
                     { label: "Unassigned", value: "Unassigned" },
+                      { label: "Pending handovers", value: "PendingHandover" },
+                      { label: "Needs coordination", value: "NeedsCoordination" },
                   ].map((item) => (
                     <DropdownMenu.Item
                       key={item.label}
                       className="flex items-center px-3 py-1.5 text-[12px] font-medium rounded-lg outline-none cursor-pointer transition-colors"
-                      style={{ 
+                      style={{
                         color: assignmentFilter === item.value ? "var(--accent)" : "var(--text-secondary)",
                         background: assignmentFilter === item.value ? "var(--accent-subtle)" : "transparent"
                       }}
                       onMouseOver={e => e.currentTarget.style.background = "var(--surface-bg)"}
                       onMouseOut={e => e.currentTarget.style.background = assignmentFilter === item.value ? "var(--accent-subtle)" : "transparent"}
-                      onClick={() => setAssignmentFilter(item.value)}
+                      onClick={() => { setAssignmentFilter(item.value); setPageNumber(1); }}
                     >
                       {item.label}
                     </DropdownMenu.Item>
@@ -313,8 +315,8 @@ export function TicketsPage() {
 
           {hasActiveFilters && (
             <button
-              onClick={() => { setStatusFilter(""); setPriorityFilter(""); setAssignmentFilter(""); }}
-              className="h-9 px-2.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-900 transition-colors"
+              onClick={() => { setStatusFilter(""); setPriorityFilter(""); setAssignmentFilter(""); setPageNumber(1); }}
+              className="h-9 px-2.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
             >
               Clear
             </button>
@@ -324,7 +326,7 @@ export function TicketsPage() {
 
       {/* Table */}
       <div
-        className="rounded-xl overflow-hidden"
+        className="rounded-xl overflow-hidden w-full max-w-[calc(100vw-32px)] md:max-w-none"
         style={{
           background: "var(--surface-default)",
           border: "1px solid var(--border-default)",
@@ -340,7 +342,7 @@ export function TicketsPage() {
             </div>
             <p className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>Failed to load tickets</p>
             <p className="text-[12px] text-center max-w-xs" style={{ color: "var(--text-disabled)" }}>{error}</p>
-            <button onClick={fetchTickets} className="text-[12px] font-medium" style={{ color: "var(--accent)" }}>Try again</button>
+            <button onClick={() => fetchTickets()} className="text-[12px] font-medium" style={{ color: "var(--accent)" }}>Try again</button>
           </div>
         )}
 
@@ -358,8 +360,9 @@ export function TicketsPage() {
 
         {/* Table List */}
         {(loading || (!error && tickets.length > 0)) && (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+          <div className="ticket-list-container">
+            {!loading && <div className="mobile-ticket-list">{tickets.map(t => <Link key={t.id} to={`/tickets/${t.id}`} className="mobile-ticket-card"><div className="mobile-ticket-meta"><span>#{t.id.substring(0,8)}</span><span>{formatDate(t.createdAt)}</span></div><h2>{t.title}</h2><p>{t.categoryName || "Uncategorized"}</p><div className="mobile-ticket-tags"><StatusBadge status={t.status}/><span style={{color:PRIORITY_COLOR[t.priority ?? ""] ?? "var(--text-tertiary)"}}>{priorityLabel(t)}</span></div><div className="mobile-ticket-assignee">Assigned to <strong>{t.assignedToName || "Unassigned"}</strong></div></Link>)}</div>}
+            <table className="ticket-table-desktop w-full border-collapse">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border-default)", background: "var(--surface-bg)" }}>
                   {["Ticket Details", "Status", "Priority", "Assignee", "Created"].map(h => (
@@ -398,9 +401,9 @@ export function TicketsPage() {
                       <StatusBadge status={t.status} />
                     </td>
                     <td className="px-5 py-3 whitespace-nowrap">
-                      <span className="text-[12px] font-medium flex items-center gap-1.5" style={{ color: PRIORITY_COLOR[t.priority] }}>
-                        <div className="w-1.5 h-1.5 rounded-full" style={{ background: PRIORITY_COLOR[t.priority] }} />
-                        {t.priority}
+                      <span className="text-[12px] font-medium flex items-center gap-1.5" style={{ color: PRIORITY_COLOR[t.priority ?? ""] ?? "var(--text-tertiary)" }}>
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ background: PRIORITY_COLOR[t.priority ?? ""] ?? "var(--text-tertiary)" }} />
+                        {priorityLabel(t)}
                       </span>
                     </td>
                     <td className="px-5 py-3 whitespace-nowrap">
@@ -415,7 +418,7 @@ export function TicketsPage() {
                 ))}
               </tbody>
             </table>
-            
+
             {/* Pagination */}
             {!loading && totalPages > 1 && (
               <div className="px-5 py-3 flex items-center justify-between" style={{ borderTop: "1px solid var(--border-subtle)", background: "var(--surface-bg)" }}>
@@ -449,7 +452,7 @@ export function TicketsPage() {
       <CreateTicketModal
         open={createModalOpen}
         onOpenChange={setCreateModalOpen}
-        onSuccess={fetchTickets}
+        onSuccess={() => { void fetchTickets(); }}
       />
     </div>
   );

@@ -17,16 +17,16 @@ namespace SmartHelpdesk.Application.Features.Tickets.Events
 
         public async Task Handle(TicketCreatedEvent notification, CancellationToken cancellationToken)
         {
-            var subject = $"[Smart Helpdesk] Ticket Created: {notification.Title}";
+            var subject = $"[Smart Helpdesk] Ticket Created: {System.Net.WebUtility.HtmlEncode(notification.Title)}";
             var body = $@"
-                <h3>Hello {notification.CustomerName},</h3>
-                <p>Your ticket <strong>'{notification.Title}'</strong> has been successfully created.</p>
+                <h3>Hello {System.Net.WebUtility.HtmlEncode(notification.CustomerName)},</h3>
+                <p>Your ticket <strong>'{System.Net.WebUtility.HtmlEncode(notification.Title)}'</strong> has been successfully created.</p>
                 <p>We will review it and get back to you shortly.</p>
                 <br/>
                 <p>Best regards,<br/>Smart Helpdesk Support Team</p>
             ";
 
-            await _emailService.SendEmailAsync(notification.CustomerEmail, subject, body);
+            await _emailService.SendEmailAsync(notification.CustomerEmail, subject, body, cancellationToken);
         }
     }
 }

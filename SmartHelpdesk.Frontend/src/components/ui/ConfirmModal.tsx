@@ -89,8 +89,9 @@ export function ConfirmModal({
             <button
               onClick={onConfirm}
               disabled={loading}
-              className="flex-1 h-10 rounded-xl text-[13px] font-semibold text-white flex items-center justify-center gap-2 transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex-1 h-10 rounded-xl text-[13px] font-semibold text-[var(--text-on-accent)] flex items-center justify-center gap-2 transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed"
               style={{
+                color: isDanger ? "var(--text-on-danger)" : "var(--text-on-accent)",
                 background: isDanger ? "var(--danger)" : "var(--accent)",
                 boxShadow: "var(--shadow-sm)",
               }}

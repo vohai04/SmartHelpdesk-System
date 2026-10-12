@@ -41,14 +41,17 @@ namespace SmartHelpdesk.Infrastructure
             services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
             services.AddTransient<IEmailService, EmailService>();
             services.AddTransient<IFileStorageService, LocalFileStorageService>();
+            services.AddSingleton<ITicketWorkflowSettings, TicketWorkflowSettings>();
+            services.AddSingleton<AccountSessions>();
+            services.AddSingleton<IAccountSessions>(sp => sp.GetRequiredService<AccountSessions>());
             services.AddScoped<INotificationService, SignalRNotificationService>();
+            services.AddScoped<INotificationInbox, NotificationInbox>();
 
             // Register AI Service
             services.AddHttpClient<IAiService, GeminiAiService>();
 
             // Register Background Task Queue
-            services.AddSingleton<IBackgroundTaskQueue>(ctx => new BackgroundTaskQueue(100));
-            services.AddHostedService<AiProcessingBackgroundService>();
+            services.AddHostedService<DurableTicketWorker>();
 
             return services;
         }

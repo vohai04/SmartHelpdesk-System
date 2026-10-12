@@ -1,3 +1,4 @@
+import type { TicketRealtimeUpdate } from './signalrService';
 import { axiosClient } from '../api/axiosClient';
 
 // --- DTOs matching backend TicketDto ---
@@ -6,13 +7,23 @@ export interface TicketDto {
   title: string;
   description: string;
   status: string;         // "Open" | "InProgress" | "Resolved" | "Closed"
-  priority: string;       // "Low" | "Medium" | "High" | "Urgent"
+  priority: string | null;
+  triageStatus: TicketRealtimeUpdate["triageStatus"];
+  prioritySource: TicketRealtimeUpdate["prioritySource"];
+  version: number;       // "Low" | "Medium" | "High" | "Urgent"
   categoryId: string | null;
   categoryName: string;
   createdById: string;
   createdByName: string;
   assignedToId: string | null;
   assignedToName?: string;
+  transferRequestedById: string | null;
+  transferTargetId: string | null;
+  transferReason: string | null;
+  transferRequestedAt: string | null;
+  startedAt: string | null;
+  resolution: string | null;
+  closureReason: string | null;
   isAiTriaged: boolean;
   aiSentiment?: string;
   aiSummary?: string;
@@ -88,9 +99,11 @@ export const ticketService = {
     return axiosClient.get(`/tickets/${id}`);
   },
 
-  updateTicket: async (id: string, data: { status?: string; priority?: string; assignedToId?: string | null }): Promise<void> => {
+  updateTicket: async (id: string, data: { status?: string; priority?: string; assignedToId?: string | null; expectedVersion?: number }): Promise<TicketDto> => {
     return axiosClient.put(`/tickets/${id}`, data);
   },
+
+  action: async (id: string, data: { action: string; expectedVersion: number; reason?: string; assignedToId?: string | null }): Promise<TicketDto> => axiosClient.post(`/tickets/${id}/actions`, data),
 
   deleteTicket: async (id: string): Promise<void> => {
     return axiosClient.delete(`/tickets/${id}`);
@@ -128,3 +141,12 @@ export const ticketService = {
     return axiosClient.get('/tickets/agents');
   }
 };
+
+export function priorityLabel(ticket:Pick<TicketDto,'priority'|'triageStatus'>) {
+  if(ticket.priority) return ticket.priority;
+  return ticket.triageStatus==='Failed'?'Needs manual triage':ticket.triageStatus==='NotRequested'?'Unclassified':'Classifying…';
+}
+export function applyTicketUpdate(ticket:TicketDto,update:TicketRealtimeUpdate):TicketDto {
+  if(ticket.id!==update.ticketId || ticket.version>=update.version) return ticket;
+  return {...ticket,assignedToId:update.assignedToId,assignedToName:update.assignedToName ?? undefined,status:update.status,priority:update.priority,triageStatus:update.triageStatus,prioritySource:update.prioritySource,version:update.version};
+}

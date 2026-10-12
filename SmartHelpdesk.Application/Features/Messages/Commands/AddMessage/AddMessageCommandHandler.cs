@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -24,12 +25,14 @@ namespace SmartHelpdesk.Application.Features.Messages.Commands.AddMessage
 
         public async Task<TicketMessageDto> Handle(AddMessageCommand request, CancellationToken cancellationToken)
         {
+            await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            await _unitOfWork.LockUsersAsync(new[] { request.SenderId }, cancellationToken);
             var ticketRepo = _unitOfWork.Repository<Ticket>();
             var ticket = await ticketRepo.GetByIdAsync(request.TicketId);
 
             if (ticket == null)
             {
-                throw new KeyNotFoundException($"Ticket with ID {request.TicketId} not found");
+                throw new SmartHelpdesk.Domain.Exceptions.NotFoundException($"Ticket with ID {request.TicketId} not found");
             }
 
             if (request.CurrentUserRole == Domain.Enums.UserRole.Customer.ToString())
@@ -40,6 +43,33 @@ namespace SmartHelpdesk.Application.Features.Messages.Commands.AddMessage
                 }
             }
 
+            var actor = await _unitOfWork.Repository<User>().GetByIdAsync(request.SenderId);
+            if (actor is null || !actor.IsActive || actor.IsDeleted) throw new UnauthorizedAccessException("Account unavailable.");
+            if (ticket.Status == Domain.Enums.TicketStatus.Closed) throw new SmartHelpdesk.Domain.Exceptions.BadRequestException("Reopen the ticket before replying.");
+            if (actor.Role == Domain.Enums.UserRole.Agent && !request.IsInternalNote && ticket.AssignedToId != actor.Id)
+                throw new UnauthorizedAccessException("Only the responsible agent can send a public reply.");
+            if (!request.IsInternalNote && actor.Role != Domain.Enums.UserRole.Customer && ticket.Status == Domain.Enums.TicketStatus.Resolved)
+                throw new SmartHelpdesk.Domain.Exceptions.BadRequestException("Reopen the ticket before sending a public reply.");
+            if (!request.IsInternalNote && actor.Role != Domain.Enums.UserRole.Customer && ticket.Status == Domain.Enums.TicketStatus.Open)
+            {
+                if (!ticket.AssignedToId.HasValue) throw new SmartHelpdesk.Domain.Exceptions.BadRequestException("Assign the ticket before sending a public reply.");
+                ticket.Status = Domain.Enums.TicketStatus.InProgress; ticket.StartedAt ??= DateTime.UtcNow;
+            }
+            var attachmentRepo = _unitOfWork.Repository<Attachment>();
+            var selectedAttachments = request.AttachmentIds is { Count: > 0 }
+                ? await attachmentRepo.FindAsync(a => request.AttachmentIds.Contains(a.Id)) : Array.Empty<Attachment>();
+            if (request.AttachmentIds is { Count: > 0 } && (selectedAttachments.Count != request.AttachmentIds.Distinct().Count()
+                || selectedAttachments.Any(a => a.UploadedById != actor.Id || a.TicketId != ticket.Id || a.TicketMessageId.HasValue)))
+                throw new SmartHelpdesk.Domain.Exceptions.BadRequestException("Attachments must belong to you and this ticket and cannot already be attached.");
+            if (!request.IsInternalNote && actor.Role == Domain.Enums.UserRole.Customer && ticket.Status is Domain.Enums.TicketStatus.WaitingForCustomer or Domain.Enums.TicketStatus.Resolved)
+            {
+                var responsible = ticket.AssignedToId.HasValue ? await _unitOfWork.Repository<User>().GetByIdAsync(ticket.AssignedToId.Value) : null;
+                if (responsible is null || !responsible.IsActive || responsible.IsDeleted || responsible.Role != Domain.Enums.UserRole.Agent) ticket.AssignedToId = null;
+                ticket.Status = ticket.AssignedToId.HasValue ? Domain.Enums.TicketStatus.InProgress : Domain.Enums.TicketStatus.Open;
+                ticket.Resolution = null; ticket.ResolvedAt = null;
+            }
+            ticket.Version++;
+            await _unitOfWork.Repository<TicketJob>().AddAsync(new TicketJob { TicketId = ticket.Id, Kind = TicketJobKind.Realtime });
             var message = new TicketMessage
             {
                 TicketId = request.TicketId,
@@ -61,8 +91,7 @@ namespace SmartHelpdesk.Application.Features.Messages.Commands.AddMessage
             var attachmentsList = new List<AttachmentDto>();
             if (request.AttachmentIds != null && request.AttachmentIds.Count > 0)
             {
-                var attachmentRepo = _unitOfWork.Repository<Attachment>();
-                var attachments = await attachmentRepo.FindAsync(a => request.AttachmentIds.Contains(a.Id));
+                var attachments = selectedAttachments;
                 foreach (var att in attachments)
                 {
                     att.TicketMessageId = message.Id;
@@ -78,22 +107,13 @@ namespace SmartHelpdesk.Application.Features.Messages.Commands.AddMessage
                 }
             }
 
+            await _unitOfWork.Repository<TicketJob>().AddAsync(new TicketJob { TicketId = ticket.Id, Kind = TicketJobKind.Notification, RecipientId = actor.Role == Domain.Enums.UserRole.Customer || request.IsInternalNote ? null : ticket.CreatedById,
+                Title = "New message", Message = "A new message is available on the ticket.", MessageId = message.Id.ToString() });
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
             var userRepo = _unitOfWork.Repository<User>();
             var sender = await userRepo.GetByIdAsync(request.SenderId);
-
-            if (!message.IsInternalNote)
-            {
-                if (sender?.Role == Domain.Enums.UserRole.Customer)
-                {
-                    await _notificationService.SendToAllAgentsAsync("Tin nhắn mới", $"Ticket #{ticket.Id.ToString().Split('-')[0].ToUpper()} có tin nhắn mới từ khách hàng.", ticket.Id.ToString(), message.Id.ToString());
-                }
-                else
-                {
-                    await _notificationService.SendToUserAsync(ticket.CreatedById, "Tin nhắn mới", $"Ticket #{ticket.Id.ToString().Split('-')[0].ToUpper()} vừa được phản hồi.", ticket.Id.ToString(), message.Id.ToString());
-                }
-            }
 
             return new TicketMessageDto
             {

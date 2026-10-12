@@ -26,6 +26,9 @@ namespace SmartHelpdesk.Application.Features.Tickets.Commands.DeleteTicket
                 throw new SmartHelpdesk.Domain.Exceptions.NotFoundException($"Không tìm thấy Ticket với Id {request.Id}");
             }
 
+            if (ticket.Status != Domain.Enums.TicketStatus.Closed) throw new Domain.Exceptions.BadRequestException("Close the ticket with a reason before archiving it.");
+            ticket.Version++;
+            await _unitOfWork.Repository<AuditLog>().AddAsync(new AuditLog { UserId = request.CurrentUserId, EntityName = "Ticket", EntityId = ticket.Id, Action = "Archive", NewValues = "IsDeleted=true" });
             ticketRepo.Delete(ticket);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 

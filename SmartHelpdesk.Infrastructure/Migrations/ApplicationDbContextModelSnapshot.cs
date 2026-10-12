@@ -55,6 +55,7 @@ namespace SmartHelpdesk.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<Guid?>("TicketMessageId")
+                        .IsConcurrencyToken()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -164,6 +165,9 @@ namespace SmartHelpdesk.Infrastructure.Migrations
                     b.Property<Guid>("CategoryId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ClosureReason")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -180,8 +184,20 @@ namespace SmartHelpdesk.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<int>("Priority")
+                    b.Property<int?>("Priority")
                         .HasColumnType("integer");
+
+                    b.Property<int>("PrioritySource")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Resolution")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -191,8 +207,27 @@ namespace SmartHelpdesk.Infrastructure.Migrations
                         .HasMaxLength(250)
                         .HasColumnType("character varying(250)");
 
+                    b.Property<string>("TransferReason")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("TransferRequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("TransferRequestedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("TransferTargetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("TriageStatus")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -203,6 +238,63 @@ namespace SmartHelpdesk.Infrastructure.Migrations
                     b.HasIndex("CreatedById");
 
                     b.ToTable("Tickets");
+                });
+
+            modelBuilder.Entity("SmartHelpdesk.Domain.Entities.TicketJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("LeaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Message")
+                        .HasColumnType("text");
+
+                    b.Property<string>("MessageId")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("RecipientId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TicketId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TicketId");
+
+                    b.HasIndex("Kind", "Status", "NextAttemptAt");
+
+                    b.ToTable("TicketJobs");
                 });
 
             modelBuilder.Entity("SmartHelpdesk.Domain.Entities.TicketMessage", b =>
@@ -288,6 +380,53 @@ namespace SmartHelpdesk.Infrastructure.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("SmartHelpdesk.Domain.Entities.UserNotification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("Dismissed")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("MessageId")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Read")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("RecipientId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("TicketId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId", "RecipientId")
+                        .IsUnique();
+
+                    b.HasIndex("RecipientId", "Date");
+
+                    b.ToTable("UserNotifications");
+                });
+
             modelBuilder.Entity("SmartHelpdesk.Domain.Entities.Attachment", b =>
                 {
                     b.HasOne("SmartHelpdesk.Domain.Entities.Ticket", null)
@@ -325,6 +464,15 @@ namespace SmartHelpdesk.Infrastructure.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("CreatedBy");
+                });
+
+            modelBuilder.Entity("SmartHelpdesk.Domain.Entities.TicketJob", b =>
+                {
+                    b.HasOne("SmartHelpdesk.Domain.Entities.Ticket", null)
+                        .WithMany()
+                        .HasForeignKey("TicketId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("SmartHelpdesk.Domain.Entities.TicketMessage", b =>

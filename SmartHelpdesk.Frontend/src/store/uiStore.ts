@@ -7,7 +7,7 @@ interface UiState {
 }
 
 // Default: open on desktop (md+), closed on mobile
-const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 768;
+const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
 
 export const useUiStore = create<UiState>((set) => ({
   isSidebarOpen: isDesktop,
